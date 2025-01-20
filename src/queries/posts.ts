@@ -213,23 +213,9 @@ export function usePostMutations(session: Session | null) {
         )
       )
 
-      // Create notification for the comment
-      if (comment.author._id !== comment.post.author._id) {
-        try {
-          await createNotification({
-            recipient: comment.post.author._id,
-            sender: comment.author._id,
-            type: 'comment',
-            post: postId
-          })
-        } catch (error) {
-          console.error('Failed to create comment notification:', error)
-        }
-      }
-
       // Invalidate queries to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ['comments', postId] })
-    },
+    }
   })
 
   const createPost = useMutation({
