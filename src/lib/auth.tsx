@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { useQueryClient } from '@tanstack/react-query'
 
 interface User {
@@ -99,6 +99,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
     
     if (!response.ok) throw new Error('Failed to delete account')
+    
+    // Sign out after successful deletion
+    await signOut({ callbackUrl: '/login' })
     setUser(null)
   }
 

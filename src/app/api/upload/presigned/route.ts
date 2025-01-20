@@ -1,51 +1,42 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
-import { cleanupAvatar, getPublicAvatarUrl, s3Client } from '@/lib/s3';
-import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { getPresignedUploadUrl, deleteAvatarFromS3 } from '@/lib/s3';
 
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { fileType, oldKey } = await req.json();
-    const key = `avatars/${session.user.id}/avatar.${fileType.split('/')[1]}`;
+    
+    // Generate a unique key for the file
+    const key = `avatars/${session.user.id}/${Date.now()}.${fileType.split('/')[1]}`;
+    
+    try {
+      // Get the presigned URL using the updated function name
+      const { uploadUrl: url, publicUrl } = await getPresignedUploadUrl(key, fileType);
+      
+      // Clean up old avatar if it exists and is not the default avatar
+      if (oldKey && !oldKey.includes('placeholder.svg')) {
+        await deleteAvatarFromS3(oldKey);
+      }
 
-    // Generate upload URL first
-    const putCommand = new PutObjectCommand({
-      Bucket: process.env.AWS_BUCKET_NAME as string,
-      Key: key,
-      ContentType: fileType,
-      CacheControl: 'public, max-age=31536000',
-      Metadata: {
-        userId: session.user.id as string,
-        uploadedAt: new Date().toISOString(),
-        oldKey: oldKey || '', // Track for potential rollback
-      },
-    });
-
-    const uploadUrl = await getSignedUrl(s3Client, putCommand, { 
-      expiresIn: 3600 
-    });
-
-    // Only delete old avatar after successful generation of new upload URL
-    if (oldKey && oldKey !== key) {
-      await cleanupAvatar(oldKey);
+      return NextResponse.json({ 
+        url, 
+        key,
+        publicUrl 
+      });
+    } catch (error) {
+      console.error('S3 error:', error);
+      return NextResponse.json({ error: 'S3 operation failed' }, { status: 500 });
     }
-
-    return NextResponse.json({ 
-      url: uploadUrl,
-      key,
-      publicUrl: getPublicAvatarUrl(key)
-    });
   } catch (error) {
-    console.error('Error in avatar upload:', error);
+    console.error('Error generating presigned URL:', error);
     return NextResponse.json(
-      { error: 'Failed to process avatar upload' },
+      { error: 'Failed to generate upload URL' }, 
       { status: 500 }
     );
   }

@@ -5,16 +5,20 @@ import dbConnect from '@/lib/mongodb'
 import { Post, IPost } from '@/models/Post'
 import { Types } from 'mongoose'
 
-interface PopulatedPost extends Omit<IPost, 'likes' | 'reposts' | 'replies'> {
+interface PopulatedPost extends Omit<IPost, 'likes' | 'reposts' | 'comments'> {
   likes: { _id: Types.ObjectId }[]
   reposts: { _id: Types.ObjectId }[]
-  replies: {
+  comments: {
     _id: Types.ObjectId
     content: string
     author: { username: string }
     likes: { _id: Types.ObjectId }[]
     reposts: { _id: Types.ObjectId }[]
+    type: 'comment'
+    depth: number
+    media: { type: 'image' | 'video'; url: string; key: string; }[]
   }[]
+  media: { type: 'image' | 'video'; url: string; key: string; }[]
 }
 
 export async function POST(
@@ -49,7 +53,7 @@ export async function POST(
       .populate('likes', '_id')
       .populate('reposts', '_id')
       .populate({
-        path: 'replies',
+        path: 'comments',
         populate: [
           {
             path: 'author',
@@ -62,9 +66,15 @@ export async function POST(
           {
             path: 'reposts',
             select: '_id'
+          },
+          {
+            path: 'comments',
+            select: '_id'
           }
-        ]
+        ],
+        select: 'content author likes reposts comments type depth media'
       })
+      .select('content author likes reposts comments type depth media')
       .lean() as PopulatedPost
 
     if (!updatedPost) {
@@ -75,12 +85,14 @@ export async function POST(
       ...updatedPost,
       likes: updatedPost.likes.map(like => like._id.toString()),
       reposts: updatedPost.reposts.map(repost => repost._id.toString()),
-      replies: updatedPost.replies.map(reply => ({
-        ...reply,
-        _id: reply._id.toString(),
-        likes: reply.likes.map(like => like._id.toString()),
-        reposts: reply.reposts.map(repost => repost._id.toString())
-      }))
+      comments: updatedPost.comments.map(comment => ({
+        ...comment,
+        _id: comment._id.toString(),
+        likes: comment.likes.map(like => like._id.toString()),
+        reposts: comment.reposts.map(repost => repost._id.toString()),
+        media: comment.media || []
+      })),
+      media: updatedPost.media || []
     }
 
     return NextResponse.json(formattedPost)

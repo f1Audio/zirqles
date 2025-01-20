@@ -13,10 +13,16 @@ export async function middleware(req: NextRequest) {
   // Always allow these paths
   if (
     pathname.includes('/api/') ||
-    pathname === '/login' ||
+    pathname.startsWith('/login') ||
     pathname.includes('/_next/') ||
-    pathname.includes('/favicon.ico')
+    pathname.includes('/favicon.ico') ||
+    pathname.includes('/images/') ||
+    pathname.includes('/fonts/')
   ) {
+    // If user is logged in and trying to access login page, redirect to home
+    if (token && pathname.startsWith('/login')) {
+      return NextResponse.redirect(new URL('/', req.url))
+    }
     return NextResponse.next()
   }
 

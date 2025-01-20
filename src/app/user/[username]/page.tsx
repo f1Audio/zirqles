@@ -13,10 +13,20 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     if (status === 'loading') return
-    if (!session) router.push('/login')
-  }, [session, status, router])
+    
+    // Check for missing username parameter
+    if (!params?.username) {
+      router.push('/404')
+      return
+    }
 
-  if (status === 'loading') {
+    if (!session) {
+      const callbackUrl = encodeURIComponent(window.location.pathname)
+      router.push(`/login?callbackUrl=${callbackUrl}`)
+    }
+  }, [session, status, router, params])
+
+  if (status === 'loading' || !params?.username) {
     return (
       <div className="min-h-screen w-full bg-gray-900 flex items-center justify-center">
         <LoadingSpinner />

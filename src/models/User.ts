@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import mongoose, { Model, models, Schema } from 'mongoose'
 
 export interface IUser {
   _id: mongoose.Types.ObjectId;
@@ -15,7 +15,7 @@ export interface IUser {
   updatedAt: Date;
 }
 
-const userSchema = new mongoose.Schema<IUser>({
+const userSchema = new Schema<IUser>({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -26,10 +26,15 @@ const userSchema = new mongoose.Schema<IUser>({
   bio: { type: String },
   location: { type: String },
   website: { type: String },
-  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  following: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true
 })
 
-export const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema)
+// Fix for Next.js model compilation
+const User = (mongoose.models?.User || mongoose.model('User', userSchema)) as Model<IUser>
+
+export { User }

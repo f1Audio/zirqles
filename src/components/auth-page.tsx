@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Loader2, AlertCircle, User, Mail, Lock } from 'lucide-react'
 import type { LucideProps } from 'lucide-react'
+import { toast } from 'sonner'
 
 const Icons = {
   spinner: Loader2,
@@ -48,6 +49,7 @@ export function AuthPageComponent() {
   const [confirmPassword, setConfirmPassword] = useState<string>('')
   const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null)
   const router = useRouter()
+  const { data: session, status } = useSession()
 
   useEffect(() => {
     if (password && confirmPassword) {
@@ -61,43 +63,70 @@ export function AuthPageComponent() {
     event.preventDefault()
     setIsLoading(true)
 
-    if (mode === 'login') {
-      const result = await signIn('credentials', {
-        redirect: false,
-        email,
-        password,
-      })
-
-      if (result?.error) {
-        console.error(result.error)
-        // Handle error (e.g., show error message to user)
-      } else {
-        router.push('/') // Redirect to dashboard on successful login
-      }
-    } else {
-      // Register new user
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password }),
-      })
-
-      if (response.ok) {
-        // Automatically sign in after successful registration
-        await signIn('credentials', {
+    try {
+      if (mode === 'login') {
+        const result = await signIn('credentials', {
           redirect: false,
           email,
           password,
         })
-        router.push('/')
-      } else {
-        const data = await response.json()
-        console.error(data.message)
-        // Handle error (e.g., show error message to user)
-      }
-    }
 
-    setIsLoading(false)
+        if (result?.error) {
+          console.error(result.error)
+          toast.error('Login failed. Please check your credentials.')
+        } else {
+          const urlParams = new URLSearchParams(window.location.search)
+          const callbackUrl = urlParams.get('callbackUrl') || '/'
+          
+          // Force a session update
+          await fetch('/api/auth/session')
+          
+          // Wait for session to be updated
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          // Use window.location for a full page navigation
+          window.location.href = decodeURIComponent(callbackUrl)
+        }
+      } else {
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password }),
+        })
+
+        if (response.ok) {
+          // Automatically sign in after successful registration
+          const result = await signIn('credentials', {
+            redirect: false,
+            email,
+            password,
+          })
+
+          if (!result?.error) {
+            // Wait for session to be updated
+            await fetch('/api/auth/session')
+            
+            // Wait a bit for the session to be fully established
+            await new Promise(resolve => setTimeout(resolve, 500))
+            
+            // Use window.location for a full page navigation
+            window.location.href = '/'
+          } else {
+            console.error(result.error)
+            toast.error('Auto-login failed after registration')
+          }
+        } else {
+          const data = await response.json()
+          console.error(data.message)
+          toast.error(data.message || 'Registration failed.')
+        }
+      }
+    } catch (error) {
+      console.error('Auth error:', error)
+      toast.error('An error occurred. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const getInputStyle = (isPassword: boolean) => {
@@ -106,7 +135,10 @@ export function AuthPageComponent() {
   }
 
   const handleGoogleSignIn = () => {
-    signIn('google', { callbackUrl: '/dashboard' })
+    signIn('google', { 
+      callbackUrl: '/',
+      redirect: true,
+    })
   }
 
   return (

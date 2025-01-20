@@ -9,16 +9,20 @@ interface InteractionButtonsProps {
     _id: string
     likes: string[]
     reposts: string[]
-    replies: string[]
+    comments: string[]
     author: {
       _id: string
     }
+    type?: 'post' | 'comment'
+    depth?: number
   }
-  onInteraction: (type: 'like' | 'repost' | 'reply', postId: string) => void
+  onInteraction: (type: 'like' | 'repost' | 'comment', postId: string) => void
   size?: 'sm' | 'default'
+  authorUsername?: string
+  onCommentClick?: (username?: string) => void
 }
 
-export function InteractionButtons({ post, onInteraction, size = 'sm' }: InteractionButtonsProps) {
+export function InteractionButtons({ post, onInteraction, size = 'sm', authorUsername, onCommentClick }: InteractionButtonsProps) {
   const { data: session } = useSession()
   const userId = session?.user?.id || ''
   const isLiked = post.likes.includes(userId)
@@ -48,21 +52,31 @@ export function InteractionButtons({ post, onInteraction, size = 'sm' }: Interac
     }
   }
 
+  // Check if comment button should be shown (hide for depth 2 comments)
+  const showCommentButton = post.type !== 'comment' || (post.depth !== undefined && post.depth < 2)
+
+  const handleCommentClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onInteraction('comment', post._id)
+    if (onCommentClick) {
+      onCommentClick(authorUsername)
+    }
+  }
+
   return (
     <div className="flex items-center mt-4 text-cyan-400 text-sm">
       <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          size={size}
-          onClick={(e) => {
-            e.stopPropagation()
-            onInteraction('reply', post._id)
-          }}
-          className="rounded-xl hover:text-cyan-300 group transition-all duration-300 ease-in-out hover:scale-[1.02] overflow-hidden p-0"
-        >
-          <MessageCircle className="h-4 w-4 group-hover:animate-pulse" />
-          <span className="ml-1">{post.replies.length}</span>
-        </Button>
+        {showCommentButton && (
+          <Button 
+            variant="ghost" 
+            size={size}
+            onClick={handleCommentClick}
+            className="rounded-xl hover:text-cyan-300 group transition-all duration-300 ease-in-out hover:scale-[1.02] overflow-hidden p-0"
+          >
+            <MessageCircle className="h-4 w-4 group-hover:animate-pulse" />
+            <span className="ml-1">{post.comments?.length || 0}</span>
+          </Button>
+        )}
         <Button 
           variant="ghost" 
           size={size}
@@ -70,7 +84,9 @@ export function InteractionButtons({ post, onInteraction, size = 'sm' }: Interac
             e.stopPropagation()
             onInteraction('repost', post._id)
           }}
-          className="rounded-xl hover:text-cyan-300 group transition-all duration-300 ease-in-out hover:scale-[1.02] overflow-hidden p-0"
+          className={`rounded-xl hover:text-cyan-300 group transition-all duration-300 ease-in-out hover:scale-[1.02] overflow-hidden p-0 ${
+            post.reposts.includes(userId) ? 'text-green-400 hover:text-green-300' : 'hover:text-green-400/90'
+          }`}
         >
           <Repeat2 className="h-4 w-4 group-hover:animate-pulse" />
           <span className="ml-1">{post.reposts.length}</span>

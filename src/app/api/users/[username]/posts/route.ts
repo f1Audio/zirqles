@@ -17,16 +17,20 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const posts = await Post.find({ author: user._id })
+    const posts = await Post.find({ 
+      author: user._id,
+      type: 'post' // Only fetch root posts
+    })
       .populate('author', 'username avatar')
       .populate('likes', '_id')
       .populate('reposts', '_id')
       .populate({
-        path: 'replies',
+        path: 'comments',
         populate: [
           { path: 'author', select: 'username avatar' },
           { path: 'likes', select: '_id' },
-          { path: 'reposts', select: '_id' }
+          { path: 'reposts', select: '_id' },
+          { path: 'comments', select: '_id' }
         ]
       })
       .sort({ createdAt: -1 })
@@ -42,18 +46,24 @@ export async function GET(
       },
       likes: post.likes.map((like: any) => like._id.toString()),
       reposts: post.reposts.map((repost: any) => repost._id.toString()),
-      replies: post.replies.map((reply: any) => ({
-        _id: reply._id.toString(),
-        content: reply.content,
+      comments: (post.comments || []).map((comment: any) => ({
+        _id: comment._id.toString(),
+        content: comment.content,
         author: {
-          _id: reply.author._id.toString(),
-          username: reply.author.username,
-          avatar: reply.author.avatar
+          _id: comment.author._id.toString(),
+          username: comment.author.username,
+          avatar: comment.author.avatar
         },
-        likes: reply.likes.map((like: any) => like._id.toString()),
-        reposts: reply.reposts.map((repost: any) => repost._id.toString()),
-        createdAt: reply.createdAt
+        likes: comment.likes.map((like: any) => like._id.toString()),
+        reposts: comment.reposts.map((repost: any) => repost._id.toString()),
+        comments: comment.comments || [],
+        type: comment.type,
+        depth: comment.depth,
+        createdAt: comment.createdAt
       })),
+      type: post.type || 'post',
+      depth: post.depth || 0,
+      media: post.media || [],
       createdAt: post.createdAt
     }))
 

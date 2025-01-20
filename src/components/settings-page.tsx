@@ -18,14 +18,17 @@ import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useQueryClient } from "@tanstack/react-query"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { getPublicAvatarUrl } from "@/lib/s3"
+import { userQueryKeys } from '../queries/user'
+import { UserData } from '@/queries/user'
+import { useUpdateAvatar } from '../queries/user'
 
 
 export function SettingsPageComponent() {
   const router = useRouter()
   const { user, updateUser, updatePassword, deleteAccount } = useAuth()
-  const { data: session, update } = useSession()
+  const { data: session, status, update } = useSession()
   const queryClient = useQueryClient()
+  const updateAvatarMutation = useUpdateAvatar();
   
   const [isLoading, setIsLoading] = useState(true)
   const [avatar, setAvatar] = useState("/placeholder.svg?height=128&width=128")
@@ -41,21 +44,25 @@ export function SettingsPageComponent() {
   const [isPasswordUpdating, setIsPasswordUpdating] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
 
-  // Load user data when component mounts
+  // Modified useEffect to handle loading state better
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        setIsLoading(true)
-        if (!session?.user?.id) {
+        if (!session?.user?.email) {
           router.push('/login')
           return
         }
 
-        // Fetch fresh user data
+        setIsLoading(true)
+        
+        // Use API route instead of direct model access
         const response = await fetch('/api/user')
-        if (!response.ok) throw new Error('Failed to fetch user')
+        if (!response.ok) {
+          throw new Error('Failed to fetch user data')
+        }
+        
         const userData = await response.json()
-
+        
         setAvatar(userData.avatar || "/placeholder.svg?height=128&width=128")
         setUsername(userData.username || "")
         setEmail(userData.email || "")
@@ -70,13 +77,15 @@ export function SettingsPageComponent() {
       }
     }
 
-    loadUserData()
+    if (session?.user?.email) {
+      loadUserData()
+    }
   }, [session, router])
 
-  // Show loading state while user data is being fetched
-  if (isLoading) {
+  // Add proper loading state check
+  if (status === "loading" || isLoading) {
     return (
-      <div className="min-h-screen w-full bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen w-full flex items-center justify-center">
         <LoadingSpinner />
       </div>
     )
@@ -87,67 +96,26 @@ export function SettingsPageComponent() {
     if (!file) return;
 
     try {
-      setIsProfileUpdating(true);
-
-      // Validate file type and size
-      if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
-        toast.error('Please upload a valid image file (JPEG, PNG, or WebP)');
-        return;
-      }
-      
+      // Validate file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
         toast.error('File size must be less than 5MB');
         return;
       }
 
-      // Optimize image before upload
+      // Optimize image
       const optimizedImage = await optimizeImage(file);
-
-      // Get presigned URL for upload
-      const presignedUrlResponse = await fetch('/api/upload/presigned', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileType: file.type,
-          oldKey: user?.avatar
-        }),
-      });
-
-      if (!presignedUrlResponse.ok) throw new Error('Failed to get upload URL');
-      const { url, key } = await presignedUrlResponse.json();
-
-      // Upload to S3
-      const uploadResponse = await fetch(url, {
-        method: 'PUT',
-        body: optimizedImage,
-        headers: {
-          'Content-Type': file.type,
-        },
-      });
-
-      if (!uploadResponse.ok) throw new Error('Failed to upload file');
-
-      // Update user avatar with the S3 key
-      const response = await fetch('/api/users/avatar', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update avatar');
-
-      // Generate public URL
-      const publicUrl = getPublicAvatarUrl(key);
-
-      // Update all relevant caches
-      updateCaches(key, publicUrl);
       
-      toast.success('Avatar updated successfully');
+      // Use the mutation
+      await updateAvatarMutation.mutateAsync({
+        file: optimizedImage as File,
+        oldAvatar: avatar,
+        userId: session?.user?.id as string
+      });
+
+      toast.success('Profile picture updated successfully');
     } catch (error) {
       console.error('Error updating avatar:', error);
-      toast.error('Failed to update avatar');
-    } finally {
-      setIsProfileUpdating(false);
+      toast.error(error instanceof Error ? error.message : 'Failed to update avatar');
     }
   };
 
@@ -237,68 +205,52 @@ export function SettingsPageComponent() {
   const handleProfileUpdate = async () => {
     try {
       setIsProfileUpdating(true)
-      await updateUser({
-        username,
-        email,
-        bio,
-        location,
-        website
-      })
       
       // Get the old username from the session for cache updates
       const oldUsername = session?.user?.username
 
-      // Update both user query caches
-      queryClient.setQueryData(['user', username], (old: any) => {
-        if (!old) return old
-        return {
-          ...old,
-          bio,
-          location,
-          website,
-          name: username,
-          handle: `@${username.toLowerCase()}`
-        }
+      // Prepare update data
+      const updateData = {
+        username,
+        email,
+        bio,
+        location,
+        website,
+        avatar
+      }
+
+      // Update user in MongoDB
+      const response = await fetch(`/api/users/${session?.user?.username}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
       })
 
-      // Also update the basic user data cache if it exists
-      queryClient.setQueryData(['user'], (old: any) => {
-        if (!old) return old
-        return {
-          ...old,
-          username,
-          email,
-          bio,
-          location,
-          website
-        }
-      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to update profile')
+      }
 
-      // Update all posts cache to reflect new username
-      queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
-        if (!old) return old
-        return old.map((post: any) => {
-          if (post.author?.username === oldUsername) {
-            return {
-              ...post,
-              author: {
-                ...post.author,
-                username,
-                name: username,
-                handle: `@${username.toLowerCase()}`
-              }
-            }
-          }
-          return post
+      // Update Stream user if username changed
+      if (session?.user?.id && username !== session?.user?.username) {
+        await fetch('/api/stream/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetUserId: session.user.id,
+            name: username,
+            avatar: avatar || session.user.avatar
+          }),
         })
-      })
+      }
 
-      // Update the session with new username
+      // Update the session with new data
       await update({
         ...session,
         user: {
           ...session?.user,
-          username: username
+          username,
+          avatar: avatar || session?.user?.avatar
         }
       })
 
@@ -307,7 +259,6 @@ export function SettingsPageComponent() {
         queryClient.invalidateQueries({ queryKey: ['user'] }),
         queryClient.invalidateQueries({ queryKey: ['user', username] }),
         queryClient.invalidateQueries({ queryKey: ['posts'] }),
-        // If old username exists, invalidate its queries too
         oldUsername && queryClient.invalidateQueries({ queryKey: ['user', oldUsername] }),
         queryClient.invalidateQueries({ queryKey: ['userPosts'] })
       ])
@@ -349,7 +300,6 @@ export function SettingsPageComponent() {
   const handleDeleteAccount = async () => {
     try {
       await deleteAccount()
-      router.push('/login')
       toast.success('Account deleted successfully')
     } catch (error) {
       toast.error('Failed to delete account')
@@ -377,7 +327,7 @@ export function SettingsPageComponent() {
                   {/* Profile Section */}
                   <div className="bg-cyan-900/20 rounded-2xl p-6 backdrop-blur-sm border border-cyan-500/20 shadow-md shadow-cyan-500/5 hover:shadow-cyan-400/10 transition-all duration-300">
                     <h2 className="text-xl font-semibold mb-6">Profile Information</h2>
-                    <div className="flex flex-col md:flex-row items-start gap-8">
+                    <div className="flex flex-col items-center md:items-start md:flex-row gap-8">
                       <div className="relative">
                         <Avatar className="w-32 h-32 ring-4 ring-cyan-500 ring-offset-4 ring-offset-gray-900">
                           <AvatarImage src={avatar} alt={username} />
@@ -390,7 +340,7 @@ export function SettingsPageComponent() {
                           <input id="avatar-upload" type="file" className="sr-only" onChange={handleAvatarChange} accept="image/*" />
                         </Label>
                       </div>
-                      <div className="space-y-4 flex-grow">
+                      <div className="space-y-4 flex-grow w-full md:w-auto">
                         <div className="space-y-2">
                           <Label htmlFor="username" className="text-sm font-medium text-cyan-300">Username</Label>
                           <div className="relative">

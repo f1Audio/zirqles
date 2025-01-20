@@ -18,9 +18,10 @@ interface User {
 interface SearchDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onUserSelect?: (username: string) => void
 }
 
-export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
+export function SearchDialog({ open, onOpenChange, onUserSelect }: SearchDialogProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [users, setUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -66,7 +67,11 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   }, [searchQuery])
 
   const handleUserClick = (username: string) => {
-    router.push(`/user/${username}`)
+    if (onUserSelect) {
+      onUserSelect(username)
+    } else {
+      router.push(`/user/${username}`)
+    }
     onOpenChange(false)
   }
 

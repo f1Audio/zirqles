@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQueryClient } from '@tanstack/react-query'
-import { usePosts, useReplies, usePostMutations, useUserMutations } from '@/queries/posts'
+import { usePosts, useComments, usePostMutations, useUserMutations } from '@/queries/posts'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { MessageCircle, Repeat2, Heart, Share, UserPlus, Mail, MapPin, Calendar, Link as LinkIcon, ArrowLeft, Settings } from 'lucide-react'
@@ -14,29 +14,37 @@ import { InteractionButtons } from './interaction-buttons'
 import { Post } from './post'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { UserListDialog } from './user-list-dialog'
 
 interface ProfilePageProps {
   username: string
 }
 
 interface UserData {
-  id: string
-  name: string
-  handle: string
-  avatar: string
-  joinDate: string
-  location: string
-  website: string
-  bio: string
-  following: number
-  followers: number
-  posts: {
-    id: string
+  _id: string
+  username: string
+  email: string
+  avatar?: string
+  bio?: string
+  location?: string
+  website?: string
+  following?: string[]
+  followers?: string[]
+  createdAt: string
+  updatedAt: string
+  posts?: {
+    _id: string
     content: string
+    author: {
+      _id: string
+      username: string
+      avatar?: string
+    }
     likes: string[]
     reposts: string[]
     replies: string[]
     createdAt: string
+    media?: string[]
   }[]
 }
 
@@ -45,11 +53,14 @@ interface Post {
   content: string
   likes: string[]
   reposts: string[]
-  replies: string[]
+  comments: string[]
+  type: 'post' | 'comment'
+  depth: number
   createdAt: string
+  media?: string[]
 }
 
-interface Reply {
+interface Comment {
   _id: string
   content: string
   author: {
@@ -57,13 +68,18 @@ interface Reply {
     username: string
     avatar: string
   }
+  likes: string[]
+  reposts: string[]
+  comments: string[]
+  type: 'comment'
+  depth: number
   createdAt: string
 }
 
 export function ProfilePageComponent({ username }: ProfilePageProps) {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
-  const { likePost, repostPost, replyToPost } = usePostMutations(session)
+  const { likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
   const { followUser } = useUserMutations(session)
   const [isLoading, setIsLoading] = useState(true)
   const [isFollowing, setIsFollowing] = useState(false)
@@ -71,11 +87,13 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const [expandedPost, setExpandedPost] = useState<string | null>(null)
-  const [replyContent, setReplyContent] = useState<{[key: string]: string}>({})
+  const [commentContent, setCommentContent] = useState<{[key: string]: string}>({})
   const [followStats, setFollowStats] = useState({
     following: 0,
     followers: 0
   })
+  const { data: comments = [] } = useComments(expandedPost)
+  const [listType, setListType] = useState<'followers' | 'following' | null>(null)
 
   const { data: userData, isLoading: isUserDataLoading, error: userDataError } = useQuery({
     queryKey: ['user', username],
@@ -108,12 +126,13 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
       const response = await fetch(`/api/users/${username}/posts`)
       if (!response.ok) throw new Error('Failed to fetch posts')
       const data = await response.json()
-      return data.posts || []
+      return Array.isArray(data.posts) ? data.posts : []
     },
     enabled: !!username,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    staleTime: 0
+    select: (data) => {
+      if (!Array.isArray(data)) return []
+      return data
+    }
   })
 
   useEffect(() => {
@@ -161,7 +180,7 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
   }
 
   const handleInteraction = async (
-    type: 'like' | 'repost' | 'reply',
+    type: 'like' | 'repost' | 'comment',
     postId: string,
     content?: string
   ) => {
@@ -178,10 +197,10 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
         case 'repost':
           await repostPost.mutateAsync(postId);
           break;
-        case 'reply':
+        case 'comment':
           if (!content) return;
-          await replyToPost.mutateAsync({ postId, content });
-          setReplyContent(prev => ({
+          await commentOnPost.mutateAsync({ postId, content });
+          setCommentContent(prev => ({
             ...prev,
             [postId]: ''
           }));
@@ -190,6 +209,16 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     } catch (error) {
       console.error(`Error handling ${type}:`, error);
       toast.error(`Failed to ${type} post`);
+    }
+  }
+
+  const handleDelete = async (postId: string) => {
+    try {
+      await deletePost.mutateAsync(postId)
+      // Cache will be automatically updated by the mutation
+    } catch (error) {
+      console.error('Error deleting post:', error)
+      toast.error('Failed to delete post')
     }
   }
 
@@ -236,14 +265,14 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                 <div className="flex justify-between items-start">
                   <div className="flex gap-8">
                     <Avatar className="w-24 h-24 ring-2 ring-purple-500 ring-offset-2 ring-offset-gray-900">
-                      <AvatarImage src={userData.avatar} alt={userData.name} />
+                      <AvatarImage src={userData.avatar} alt={userData.username} />
                       <AvatarFallback className="bg-gray-900 text-purple-300">
-                        {userData.name.charAt(0)}
+                        {userData.username.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col justify-center">
-                      <h2 className="font-bold text-2xl mb-1">{userData.name}</h2>
-                      <p className="text-cyan-500 text-lg">{userData.handle}</p>
+                      <h2 className="font-bold text-2xl mb-1">{userData.username}</h2>
+                      <p className="text-cyan-500 text-lg">@{userData.username.toLowerCase()}</p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -253,8 +282,8 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                           className="rounded-full bg-gray-800 hover:bg-gray-700 text-cyan-300 hover:text-cyan-200 border border-gray-700"
                           size="sm"
                         >
-                          <Settings className="h-4 w-4 mr-2" />
-                          Edit Profile
+                          <Settings className="h-4 w-4" />
+                          <span className="ml-2 hidden md:inline">Edit Profile</span>
                         </Button>
                       </Link>
                     ) : (
@@ -323,15 +352,31 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
 
                 {/* Following/Followers */}
                 <div className="flex gap-4 text-sm">
-                  <Link href={`/user/${userData.handle}/following`} className="hover:underline">
+                  <button
+                    onClick={() => setListType('following')}
+                    className="hover:underline flex items-center gap-1"
+                  >
                     <span className="font-bold text-cyan-100">{followStats.following}</span>
-                    <span className="text-cyan-500 ml-1">Following</span>
-                  </Link>
-                  <Link href={`/user/${userData.handle}/followers`} className="hover:underline">
+                    <span className="text-cyan-500">Following</span>
+                  </button>
+                  <button
+                    onClick={() => setListType('followers')}
+                    className="hover:underline flex items-center gap-1"
+                  >
                     <span className="font-bold text-cyan-100">{followStats.followers}</span>
-                    <span className="text-cyan-500 ml-1">Followers</span>
-                  </Link>
+                    <span className="text-cyan-500">Followers</span>
+                  </button>
                 </div>
+
+                {/* User List Dialog */}
+                {listType && (
+                  <UserListDialog
+                    username={username}
+                    type={listType}
+                    open={!!listType}
+                    onOpenChange={(open) => !open && setListType(null)}
+                  />
+                )}
               </div>
 
               {/* Tabs with Post Count */}
@@ -349,32 +394,36 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
 
               {/* Posts Feed */}
               <div className="py-4">
-                {userPosts.map((post: any) => (
+                {Array.isArray(userPosts) && userPosts.map((post: any) => (
                   <Post
                     key={post._id}
                     post={{
                       _id: post._id,
                       content: post.content,
                       author: {
-                        _id: userData.id,
-                        username: userData.name,
-                        avatar: userData.avatar
+                        _id: userData?.id,
+                        username: userData?.name,
+                        avatar: userData?.avatar
                       },
                       likes: post.likes || [],
                       reposts: post.reposts || [],
-                      replies: post.replies || [],
-                      createdAt: post.createdAt
+                      comments: post.comments || [],
+                      type: post.type || 'post',
+                      depth: post.depth || 0,
+                      createdAt: post.createdAt,
+                      media: post.media || []
                     }}
                     isExpanded={expandedPost === post._id}
                     onExpand={setExpandedPost}
                     onInteraction={handleInteraction}
-                    replyContent={replyContent[post._id] || ''}
-                    onReplyChange={(content) => setReplyContent(prev => ({
+                    commentContent={commentContent[post._id] || ''}
+                    onCommentChange={(content: string) => setCommentContent(prev => ({
                       ...prev,
                       [post._id]: content
                     }))}
-                    showReplies={expandedPost === post._id}
-                    replies={[]}
+                    showComments={expandedPost === post._id}
+                    comments={expandedPost === post._id ? comments : []}
+                    onDelete={handleDelete}
                   />
                 ))}
               </div>

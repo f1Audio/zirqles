@@ -173,6 +173,23 @@ export async function DELETE() {
       }
     }
 
+    // Delete all sessions for this user from the database
+    if (process.env.NEXTAUTH_URL) {
+      try {
+        await fetch(`${process.env.NEXTAUTH_URL}/api/auth/session`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId: userId.toString() }),
+        })
+      } catch (error) {
+        console.error('Error deleting sessions:', error)
+        // Continue with account deletion even if session deletion fails
+      }
+    }
+
+    // Finally delete the user
     await User.deleteOne({ _id: userId })
 
     return NextResponse.json({ message: 'User and all associated data deleted successfully' })

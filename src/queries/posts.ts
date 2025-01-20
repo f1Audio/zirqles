@@ -4,14 +4,15 @@ import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
 import { createNotification } from '@/lib/notifications'
 
-export function useReplies(postId: string | null) {
+export function useComments(postId: string | null) {
   return useQuery({
-    queryKey: ['replies', postId],
+    queryKey: ['comments', postId],
     queryFn: async () => {
       if (!postId) return []
-      const response = await fetch(`/api/posts/${postId}/reply`)
-      if (!response.ok) throw new Error('Failed to fetch replies')
-      return response.json()
+      const response = await fetch(`/api/posts/${postId}/comments`)
+      if (!response.ok) throw new Error('Failed to fetch comments')
+      const comments = await response.json()
+      return comments.filter((comment: any) => typeof comment === 'object' && comment !== null)
     },
     enabled: !!postId, // Only fetch when postId is available
   })
@@ -156,36 +157,44 @@ export function usePostMutations(session: Session | null) {
     },
   })
 
-  const replyToPost = useMutation({
+  const commentOnPost = useMutation({
     mutationFn: async ({ postId, content }: { postId: string; content: string }) => {
-      const response = await fetch(`/api/posts/${postId}/reply`, {
+      const response = await fetch(`/api/posts/${postId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
       })
-      if (!response.ok) throw new Error('Failed to reply')
+      if (!response.ok) throw new Error('Failed to comment')
       return response.json()
     },
-    onSuccess: async (reply, { postId }) => {
-      // Update replies cache
-      queryClient.setQueryData(['replies', postId], (oldReplies: any) => 
-        [...(oldReplies || []), reply]
-      )
-      // Update post's reply count in posts cache
+    onSuccess: async (comment, { postId }) => {
+      // Update comments cache with the full comment object
+      queryClient.setQueryData(['comments', postId], (oldComments: any[] = []) => {
+        // Filter out any string IDs and add the new comment
+        const validComments = oldComments.filter(c => typeof c === 'object' && c !== null)
+        return [...validComments, comment]
+      })
+
+      // Update post's comment count in posts cache
       queryClient.setQueryData(['posts'], (oldPosts: any) => 
         oldPosts?.map((post: any) => 
           post._id === postId 
-            ? { ...post, replies: [...post.replies, reply._id] }
+            ? { 
+                ...post, 
+                comments: Array.isArray(post.comments) 
+                  ? [...post.comments, comment]
+                  : [comment]
+              }
             : post
         )
       )
 
-      // Create notification for the reply
-      if (reply.author._id !== reply.post.author._id) {
+      // Create notification for the comment
+      if (comment.author._id !== comment.post.author._id) {
         try {
           await createNotification({
-            recipient: reply.post.author._id,
-            sender: reply.author._id,
+            recipient: comment.post.author._id,
+            sender: comment.author._id,
             type: 'comment',
             post: postId
           })
@@ -193,6 +202,9 @@ export function usePostMutations(session: Session | null) {
           console.error('Failed to create comment notification:', error)
         }
       }
+
+      // Invalidate queries to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] })
     },
   })
 
@@ -220,7 +232,76 @@ export function usePostMutations(session: Session | null) {
     }
   })
 
-  return { likePost, repostPost, replyToPost, createPost }
+  const deletePost = useMutation({
+    mutationFn: async (postId: string) => {
+     
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        console.error('Delete response error:', error)
+        throw new Error(error.error || 'Failed to delete post')
+      }
+      return response.json()
+    },
+    onMutate: async (postId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['posts'] })
+      if (session?.user?.username) {
+        await queryClient.cancelQueries({ 
+          queryKey: ['user', session.user.username, 'posts'] 
+        })
+      }
+
+      // Get current posts
+      const previousPosts = queryClient.getQueryData(['posts'])
+      const previousUserPosts = session?.user?.username ? 
+        queryClient.getQueryData(['user', session.user.username, 'posts']) 
+        : undefined
+
+      // Optimistically remove post from cache
+      const updatePostsInCache = (old: any[]) => 
+        old?.filter((post: any) => post._id !== postId)
+
+      queryClient.setQueryData(['posts'], updatePostsInCache)
+      
+      if (session?.user?.username) {
+        queryClient.setQueryData(
+          ['user', session.user.username, 'posts'], 
+          (old: any) => old?.posts ? {
+            ...old,
+            posts: updatePostsInCache(old.posts)
+          } : old
+        )
+      }
+
+      return { previousPosts, previousUserPosts }
+    },
+    onError: (err, postId, context) => {
+      // Rollback on error
+      queryClient.setQueryData(['posts'], context?.previousPosts)
+      if (session?.user?.username) {
+        queryClient.setQueryData(
+          ['user', session.user.username, 'posts'], 
+          context?.previousUserPosts
+        )
+      }
+      toast.error('Failed to delete post')
+    },
+    onSuccess: () => {
+      toast.success('Post deleted successfully')
+      // Refetch to ensure cache is in sync
+      queryClient.invalidateQueries({ queryKey: ['posts'] })
+      if (session?.user?.username) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['user', session.user.username, 'posts'] 
+        })
+      }
+    }
+  })
+
+  return { likePost, repostPost, commentOnPost, createPost, deletePost }
 }
 
 export function useUserMutations(session: Session | null) {

@@ -161,10 +161,10 @@ export function NotificationsPageComponent() {
   }, [isLoading, notifications, markAsRead, queryClient])
 
   return (
-    <div className="container mx-auto px-4">
-      <div className="max-w-2xl mx-auto pb-20 md:pb-8">
-        <div className="pt-20">
-          <div className="bg-gray-800/50 rounded-2xl backdrop-blur-xl border border-cyan-500/30 overflow-hidden">
+    <div className="container mx-auto px-4 h-screen flex items-center md:block">
+      <div className="max-w-2xl mx-auto pb-20 md:pb-8 h-[75%] md:h-auto w-full">
+        <div className="h-full md:pt-20">
+          <div className="bg-gray-800/50 rounded-2xl backdrop-blur-xl border border-cyan-500/30 overflow-hidden h-full flex flex-col">
             <div className="p-4 border-b border-cyan-500/30">
               <div className="flex justify-between items-center">
                 <div className="flex space-x-1 md:space-x-2">
@@ -201,7 +201,7 @@ export function NotificationsPageComponent() {
                 </Button>
               </div>
             </div>
-            <ScrollArea className="h-[calc(100vh-220px)]">
+            <ScrollArea className="flex-1 md:h-[calc(100vh-220px)]">
               <div className="p-4 space-y-4">
                 {notifications.length === 0 ? (
                   <div className="text-center py-16 animate-pulse">

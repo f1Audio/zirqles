@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from '@/components/providers/Providers'
 import { AuthProvider } from '@/lib/auth'
 import { Toaster } from 'sonner'
+import { StreamChatProvider } from '@/contexts/StreamChatContext'
 
 export const metadata: Metadata = {
   title: "Zirqles",
@@ -17,12 +18,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <Providers>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
-          <Toaster />
-        </Providers>
+        <StreamChatProvider>
+          <Providers>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+            <Toaster />
+          </Providers>
+        </StreamChatProvider>
       </body>
     </html>
   );

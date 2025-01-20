@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
-import { usePosts, useReplies, usePostMutations } from '@/queries/posts'
+import { usePosts, useComments, usePostMutations } from '@/queries/posts'
 import { Navbar } from './layout/navbar'
 import { Sidebar } from './layout/sidebar'
 import { SearchDialog } from './layout/search-dialog'
@@ -13,7 +13,7 @@ import { PostComposer } from './post-composer'
 import { LoadingSpinner } from './ui/loading-spinner'
 import { toast } from 'sonner'
 
-interface ReplyState {
+interface CommentState {
   [key: string]: string
 }
 
@@ -27,48 +27,45 @@ export function HomePageComponent() {
   const [newPost, setNewPost] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [expandedPost, setExpandedPost] = useState<string | null>(null)
-  const [replyContent, setReplyContent] = useState<ReplyState>({})
+  const [commentContent, setCommentContent] = useState<CommentState>({})
 
   // Queries & Mutations
   const { data: posts = [], isLoading: postsLoading } = usePosts()
-  const { data: replies = [], isLoading: repliesLoading } = useReplies(expandedPost)
-  const { likePost, repostPost, replyToPost } = usePostMutations(session)
+  const { data: comments = [] } = useComments(expandedPost)
+  const { createPost, likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
 
   // Event Handlers
-  const handlePost = async () => {
-    if (!newPost.trim()) return
+  const handlePost = async (media?: { type: string; url: string; key: string }[]) => {
+    if (!newPost.trim() && (!media || media.length === 0)) {
+      toast.error('Please add some content or media to your post')
+      return
+    }
+
+    const payload = {
+      content: newPost,
+      media: media || [] // Ensure media is always an array
+    }
 
     try {
       const response = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newPost }),
+        body: JSON.stringify(payload),
       })
 
-      if (!response.ok) throw new Error('Failed to create post')
-      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to create post')
+      }
+
       const newPostData = await response.json()
       
       // Update the posts cache optimistically
       queryClient.setQueryData(['posts'], (old: any[] = []) => [newPostData, ...old])
       
-      // Update the user profile posts cache optimistically
-      if (session?.user?.username) {
-        queryClient.setQueryData(['user', session.user.username, 'posts'], (old: any[] = []) => 
-          [newPostData, ...old]
-        )
-      }
-      
-      // Invalidate only the posts queries
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['posts'] }),
-        queryClient.invalidateQueries({ 
-          queryKey: ['user', session?.user?.username, 'posts'],
-          exact: true 
-        })
-      ])
-      
+      // Clear the form
       setNewPost('')
+      
       toast.success('Post created successfully')
     } catch (error) {
       console.error('Error creating post:', error)
@@ -77,7 +74,7 @@ export function HomePageComponent() {
   }
 
   const handleInteraction = async (
-    type: 'like' | 'repost' | 'reply',
+    type: 'like' | 'repost' | 'comment',
     postId: string,
     content?: string
   ) => {
@@ -89,13 +86,15 @@ export function HomePageComponent() {
         case 'repost':
           await repostPost.mutateAsync(postId)
           break
-        case 'reply':
+        case 'comment':
           if (!content) return
-          await replyToPost.mutateAsync({ postId, content })
-          setReplyContent(prev => ({
+          await commentOnPost.mutateAsync({ postId, content })
+          setCommentContent(prev => ({
             ...prev,
             [postId]: ''
           }))
+          // Refetch comments for the parent post after adding a new comment
+          queryClient.invalidateQueries({ queryKey: ['comments', postId] })
           break
       }
     } catch (error) {
@@ -103,13 +102,13 @@ export function HomePageComponent() {
     }
   }
 
-  // Prefetch replies on post hover
+  // Prefetch comments on post hover
   const handlePostHover = (postId: string) => {
     queryClient.prefetchQuery({
-      queryKey: ['replies', postId],
+      queryKey: ['comments', postId],
       queryFn: async () => {
-        const response = await fetch(`/api/posts/${postId}/reply`)
-        if (!response.ok) throw new Error('Failed to fetch replies')
+        const response = await fetch(`/api/posts/${postId}/comments`)
+        if (!response.ok) throw new Error('Failed to fetch comments')
         return response.json()
       }
     })
@@ -128,6 +127,14 @@ export function HomePageComponent() {
       })
     }
   }, [session?.user?.username, queryClient])
+
+  const handleDelete = async (postId: string) => {
+    try {
+      await deletePost.mutateAsync(postId)
+    } catch (error) {
+      console.error('Error deleting post:', error)
+    }
+  }
 
   if (postsLoading) {
     return (
@@ -182,13 +189,14 @@ export function HomePageComponent() {
                       isExpanded={expandedPost === post._id}
                       onExpand={setExpandedPost}
                       onInteraction={handleInteraction}
-                      replyContent={replyContent[post._id] || ''}
-                      onReplyChange={(content) => setReplyContent(prev => ({
+                      commentContent={commentContent[post._id] || ''}
+                      onCommentChange={(content) => setCommentContent(prev => ({
                         ...prev,
                         [post._id]: content
                       }))}
-                      showReplies={expandedPost === post._id}
-                      replies={expandedPost === post._id ? replies : []}
+                      showComments={expandedPost === post._id}
+                      comments={expandedPost === post._id ? comments : []}
+                      onDelete={handleDelete}
                     />
                   ))
                 )}
