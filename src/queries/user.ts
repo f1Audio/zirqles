@@ -23,25 +23,28 @@ export const userQueryKeys = {
   userPosts: ['userPosts']
 }
 
-export function useUser(username?: string) {
+export function useUser() {
   const { data: session } = useSession()
-  const queryClient = useQueryClient()
-
-  return useQuery<UserData, Error>({
-    queryKey: userQueryKeys.profile(username),
+  
+  return useQuery({
+    queryKey: ['user'],
     queryFn: async () => {
-      // Use current session username if it matches the requested username
-      const isCurrentUser = session?.user?.username === username
-      const apiPath = isCurrentUser ? '/api/user' : `/api/users/${username}`
-      
-      const response = await fetch(apiPath)
-      if (!response.ok) throw new Error('Failed to fetch user')
-      return response.json()
+      const response = await fetch('/api/user')
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data')
+      }
+      const data = await response.json()
+      return data
     },
-    enabled: !!username,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 5,
-    retry: false // Don't retry failed requests
+    enabled: !!session,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    initialData: session?.user ? {
+      _id: session.user.id,
+      username: session.user.username,
+      avatar: session.user.avatar,
+      followers: 0,
+      following: 0
+    } : undefined
   })
 }
 

@@ -6,39 +6,46 @@ import { User } from '@/models/User'
 import { Post } from '@/models/Post'
 import { s3Client } from '@/lib/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
+import mongoose from 'mongoose';
 
 // GET /api/user
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     await dbConnect()
-    const user = await User.findOne(
-      { email: session.user.email },
-      'id username email avatar bio location website'
-    ).lean() as any
 
-    if (!user) {
+    // Use aggregation to get accurate counts
+    const [userData] = await User.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(session.user.id) } },
+      {
+        $project: {
+          _id: 1,
+          username: 1,
+          avatar: 1,
+          followers: { $size: { $ifNull: ["$followers", []] } },
+          following: { $size: { $ifNull: ["$following", []] } }
+        }
+      }
+    ])
+
+    if (!userData) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const userData = {
-      id: user._id.toString(),
-      username: user.username,
-      email: user.email,
-      avatar: user.avatar,
-      bio: user.bio,
-      location: user.location,
-      website: user.website
-    }
-
-    return NextResponse.json(userData)
+    return NextResponse.json({
+      _id: userData._id.toString(),
+      username: userData.username,
+      avatar: userData.avatar,
+      followers: userData.followers,
+      following: userData.following
+    })
   } catch (error) {
-    console.error('GET /api/user error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    console.error('Error fetching user:', error)
+    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
   }
 }
 

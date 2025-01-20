@@ -21,6 +21,7 @@ export function UserList({ username, type }: UserListProps) {
   const { data: session } = useSession()
   const { followUser } = useUserMutations(session)
   const queryClient = useQueryClient()
+  const [loadingUsers, setLoadingUsers] = useState<Set<string>>(new Set())
   
   const { data, isLoading, error } = useQuery({
     queryKey: ['users', username, type],
@@ -37,9 +38,8 @@ export function UserList({ username, type }: UserListProps) {
   })
 
   if (error) {
-    console.error('Query error:', error)
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-8 rounded-xl bg-gray-800/50">
         <p className="text-red-500">Error loading users</p>
       </div>
     )
@@ -47,7 +47,7 @@ export function UserList({ username, type }: UserListProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center p-8 rounded-xl bg-gray-800/50">
         <LoadingSpinner />
       </div>
     )
@@ -55,8 +55,8 @@ export function UserList({ username, type }: UserListProps) {
 
   if (!data?.users?.length) {
     return (
-      <div className="flex items-center justify-center p-8 text-cyan-500/70">
-        <p>No {type} found</p>
+      <div className="flex items-center justify-center p-8 rounded-xl bg-gray-800/50">
+        <p className="text-cyan-500/70">No {type} found</p>
       </div>
     )
   }
@@ -64,20 +64,22 @@ export function UserList({ username, type }: UserListProps) {
   const handleFollow = async (targetUsername: string) => {
     if (!session) return
     try {
+      // Set loading state for this specific user
+      setLoadingUsers(prev => new Set(prev).add(targetUsername))
+
       // Optimistically update the UI
       queryClient.setQueryData(['users', username, type], (old: any) => ({
         ...old,
         users: old.users.map((user: any) => 
-          user.username === targetUsername 
+          user.username === targetUsername || user.name === targetUsername
             ? { ...user, isFollowing: !user.isFollowing }
             : user
         )
       }))
 
-      // Make the API call
       await followUser.mutateAsync(targetUsername)
 
-      // Update the followers/following counts in the profile
+      // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['user', username] })
       if (session.user?.username) {
         queryClient.invalidateQueries({ queryKey: ['user', session.user.username] })
@@ -87,46 +89,67 @@ export function UserList({ username, type }: UserListProps) {
       queryClient.setQueryData(['users', username, type], (old: any) => ({
         ...old,
         users: old.users.map((user: any) => 
-          user.username === targetUsername 
+          user.username === targetUsername || user.name === targetUsername
             ? { ...user, isFollowing: !user.isFollowing }
             : user
         )
       }))
       console.error('Error following user:', error)
+    } finally {
+      // Remove loading state for this user
+      setLoadingUsers(prev => {
+        const next = new Set(prev)
+        next.delete(targetUsername)
+        return next
+      })
     }
   }
 
   return (
-    <div className="divide-y divide-cyan-500/20">
+    <div className="space-y-2 max-h-[70vh] overflow-y-auto">
       {data.users.map((user: any) => (
-        <div key={user.id} className="p-4 hover:bg-cyan-900/20 transition-colors">
-          <div className="flex items-center justify-between">
-            <Link href={`/user/${user.username}`} className="flex items-center gap-3 flex-1">
-              <Avatar className="h-12 w-12 ring-2 ring-cyan-500 ring-offset-2 ring-offset-gray-900">
-                <AvatarImage src={user.avatar} alt={user.username} />
-                <AvatarFallback className="bg-cyan-900 text-cyan-100">
-                  {user.username[0]}
+        <div 
+          key={user._id || user.id}
+          className="p-4 rounded-2xl hover:bg-gray-800/50 transition-all duration-200 border border-cyan-500/10"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <Link 
+              href={`/user/${user.username || user.name}`}
+              className="flex items-center gap-4 flex-1 group"
+            >
+              <Avatar className="h-12 w-12 ring-2 ring-cyan-500/50 ring-offset-2 ring-offset-gray-800 transition-all duration-200 group-hover:ring-cyan-400">
+                <AvatarImage src={user.avatar} alt={user.username || user.name} />
+                <AvatarFallback className="bg-cyan-900/50 text-cyan-100">
+                  {(user.username || user.name)[0]}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <h3 className="font-semibold text-cyan-100">@{user.username}</h3>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-cyan-100 truncate group-hover:text-cyan-300 transition-colors">
+                  @{user.username || user.name}
+                </h3>
                 {user.bio && (
-                  <p className="text-sm text-cyan-300/70 line-clamp-1">{user.bio}</p>
+                  <p className="text-sm text-cyan-300/70 line-clamp-1 group-hover:text-cyan-200/70 transition-colors">
+                    {user.bio}
+                  </p>
                 )}
               </div>
             </Link>
-            {session?.user?.username !== user.username && (
+            {session?.user?.username !== (user.username || user.name) && (
               <Button
-                onClick={() => handleFollow(user.username)}
-                disabled={followUser.isPending}
-                className={`rounded-full ${
-                  user.isFollowing
-                    ? 'bg-gray-800 hover:bg-gray-700 text-cyan-300 hover:text-cyan-200 border border-gray-700'
-                    : 'bg-cyan-600 hover:bg-cyan-500'
+                onClick={() => handleFollow(user.username || user.name)}
+                disabled={loadingUsers.has(user.username || user.name)}
+                className={`rounded-full transition-all duration-200 ${
+                  user.isFollowing 
+                    ? 'bg-gray-700 hover:bg-gray-600 text-cyan-300 hover:text-cyan-200 border border-gray-600'
+                    : 'bg-cyan-600 hover:bg-cyan-500 text-white'
                 }`}
                 size="sm"
               >
-                {user.isFollowing ? 'Following' : 'Follow'}
+                {loadingUsers.has(user.username || user.name) ? (
+                  <LoadingSpinner className="w-4 h-4" />
+                ) : (
+                  user.isFollowing ? 'Following' : 'Follow'
+                )}
               </Button>
             )}
           </div>

@@ -4,6 +4,7 @@ import { authOptions } from '../auth/[...nextauth]/options'
 import dbConnect from '@/lib/mongodb'
 import { Post, IPost } from '@/models/Post'
 import { User } from '@/models/User'
+import mongoose from 'mongoose'
 
 export async function GET() {
   try {
@@ -19,11 +20,46 @@ export async function GET() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const posts = await Post.find({
-      author: { $in: [...(currentUser.following || []), currentUser._id] },
-      type: 'post' // Only fetch root posts
-    })
-      .populate('author', 'username avatar')
+    // Debug logs
+    console.log('Current user:', currentUser._id)
+    console.log('Following:', currentUser.following?.length || 0, 'users')
+    console.log('Following IDs:', currentUser.following)
+
+    // Get all users that the current user follows and ensure they're ObjectIds
+    const followedUsers = (currentUser.following || []).map(id => 
+      typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id
+    )
+
+    // Log the query we're about to execute
+    const query = {
+      $and: [
+        { type: 'post' },
+        {
+          $or: [
+            { author: new mongoose.Types.ObjectId(currentUser._id.toString()) },
+            { author: { 
+              $in: followedUsers.map(id => new mongoose.Types.ObjectId(id.toString())) 
+            } }
+          ]
+        }
+      ]
+    }
+    console.log('MongoDB query:', JSON.stringify(query, null, 2))
+
+    // Execute query and log results before processing
+    const rawPosts = await Post.find(query).lean()
+    console.log('Raw posts count:', rawPosts.length)
+    console.log('Posts by author:', rawPosts.reduce((acc: { [key: string]: number }, post) => {
+      const authorId = post.author.toString()
+      acc[authorId] = (acc[authorId] || 0) + 1
+      return acc
+    }, {}))
+
+    const posts = await Post.find(query)
+      .populate({
+        path: 'author',
+        select: '_id username avatar'
+      })
       .populate('likes', '_id')
       .populate('reposts', '_id')
       .populate({
@@ -47,6 +83,9 @@ export async function GET() {
       .select('content author likes reposts comments type depth media createdAt updatedAt')
       .sort({ createdAt: -1 })
       .lean()
+
+    console.log('Final posts count:', posts.length)
+    console.log('Author IDs in final posts:', posts.map(p => p.author._id.toString()))
 
     const formattedPosts = posts.map((post: any) => ({
       _id: post._id.toString(),

@@ -31,7 +31,7 @@ export function SettingsPageComponent() {
   const updateAvatarMutation = useUpdateAvatar();
   
   const [isLoading, setIsLoading] = useState(true)
-  const [avatar, setAvatar] = useState("/placeholder.svg?height=128&width=128")
+  const [avatar, setAvatar] = useState("")
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [bio, setBio] = useState("")
@@ -63,7 +63,7 @@ export function SettingsPageComponent() {
         
         const userData = await response.json()
         
-        setAvatar(userData.avatar || "/placeholder.svg?height=128&width=128")
+        setAvatar(userData.avatar || "")
         setUsername(userData.username || "")
         setEmail(userData.email || "")
         setBio(userData.bio || "")

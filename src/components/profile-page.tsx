@@ -32,6 +32,7 @@ interface UserData {
   followers?: string[]
   createdAt: string
   updatedAt: string
+  isFollowing?: boolean
   posts?: {
     _id: string
     content: string
@@ -82,20 +83,15 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
   const { likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
   const { followUser } = useUserMutations(session)
   const [isLoading, setIsLoading] = useState(true)
-  const [isFollowing, setIsFollowing] = useState(false)
   const [scrollPosition, setScrollPosition] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const [expandedPost, setExpandedPost] = useState<string | null>(null)
   const [commentContent, setCommentContent] = useState<{[key: string]: string}>({})
-  const [followStats, setFollowStats] = useState({
-    following: 0,
-    followers: 0
-  })
   const { data: comments = [] } = useComments(expandedPost)
   const [listType, setListType] = useState<'followers' | 'following' | null>(null)
 
-  const { data: userData, isLoading: isUserDataLoading, error: userDataError } = useQuery({
+  const { data: userData, isLoading: isUserDataLoading } = useQuery({
     queryKey: ['user', username],
     queryFn: async () => {
       const response = await fetch(`/api/users/${username}`)
@@ -106,18 +102,14 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
         }
         throw new Error('Failed to fetch user data')
       }
-      const data = await response.json()
-      
-      setIsFollowing(data.isFollowing)
-      setFollowStats({
-        following: data.following,
-        followers: data.followers
-      })
-      
-      return data
+      return response.json()
     },
-    refetchOnMount: false,
-    refetchOnWindowFocus: false
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    retry: 3,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    enabled: !!username
   })
 
   const { data: userPosts = [] } = useQuery({
@@ -149,16 +141,6 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     }
   }, [])
 
-  useEffect(() => {
-    if (userData) {
-      setIsFollowing(userData.isFollowing)
-      setFollowStats({
-        following: userData.following,
-        followers: userData.followers
-      })
-    }
-  }, [userData])
-
   const handleFollow = async () => {
     if (!session) {
       toast.error('Please login to follow users')
@@ -166,11 +148,26 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     }
 
     try {
-      const result = await followUser.mutateAsync(username)
+      queryClient.setQueryData(['user', username], (old: any) => ({
+        ...old,
+        isFollowing: !old?.isFollowing,
+        followers: (old?.followers || 0) + (!old?.isFollowing ? 1 : -1)
+      }))
+
+      await followUser.mutateAsync(username)
       
-      toast.success(result.isFollowing ? 'Followed successfully' : 'Unfollowed successfully')
+      queryClient.invalidateQueries({ queryKey: ['user', username] })
+      if (session.user?.username) {
+        queryClient.invalidateQueries({ queryKey: ['user', session.user.username] })
+      }
     } catch (error) {
+      queryClient.setQueryData(['user', username], (old: any) => ({
+        ...old,
+        isFollowing: !old?.isFollowing,
+        followers: (old?.followers || 0) + (old?.isFollowing ? 1 : -1)
+      }))
       console.error('Error following user:', error)
+      toast.error('Failed to update follow status')
     }
   }
 
@@ -224,27 +221,33 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
 
   const isOwnProfile = session?.user?.username === username
 
-  if (isUserDataLoading) {
+  const displayName = session?.user?.username === username 
+    ? session.user.username 
+    : userData?.name || session?.user?.username || 'Loading...'
+
+  const displayAvatar = session?.user?.username === username
+    ? session.user.avatar
+    : userData?.avatar || session?.user?.avatar
+
+  const avatarSection = (
+    <Avatar className="w-24 h-24 ring-2 ring-purple-500 ring-offset-2 ring-offset-gray-900">
+      <AvatarImage 
+        src={displayAvatar} 
+        alt={displayName} 
+      />
+      <AvatarFallback className="bg-gray-900 text-purple-300">
+        {displayName.charAt(0).toUpperCase()}
+      </AvatarFallback>
+    </Avatar>
+  )
+
+  if (isUserDataLoading || !userData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-cyan-300 font-mono">
         <div className="min-h-[calc(100vh-4rem)] pt-14">
           <div className="md:pl-64 h-[calc(100vh-4rem)]">
             <div className="flex items-center justify-center h-full">
               <LoadingSpinner />
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (userDataError || !userData) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-cyan-300 font-mono">
-        <div className="min-h-[calc(100vh-4rem)] pt-14">
-          <div className="md:pl-64 h-[calc(100vh-4rem)]">
-            <div className="flex items-center justify-center h-full">
-              <p>Error loading profile</p>
             </div>
           </div>
         </div>
@@ -264,15 +267,14 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
               <div className="flex flex-col gap-4">
                 <div className="flex justify-between items-start">
                   <div className="flex gap-8">
-                    <Avatar className="w-24 h-24 ring-2 ring-purple-500 ring-offset-2 ring-offset-gray-900">
-                      <AvatarImage src={userData.avatar} alt={userData.username} />
-                      <AvatarFallback className="bg-gray-900 text-purple-300">
-                        {userData.username.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
+                    {avatarSection}
                     <div className="flex flex-col justify-center">
-                      <h2 className="font-bold text-2xl mb-1">{userData.username}</h2>
-                      <p className="text-cyan-500 text-lg">@{userData.username.toLowerCase()}</p>
+                      <h2 className="font-bold text-2xl mb-1">
+                        {displayName}
+                      </h2>
+                      <p className="text-cyan-500 text-lg">
+                        @{username.toLowerCase()}
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -299,7 +301,7 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                           onClick={handleFollow}
                           disabled={followUser.isPending}
                           className={`rounded-full ${
-                            isFollowing
+                            userData?.isFollowing
                               ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-gray-200 border border-gray-700'
                               : 'bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400'
                           } text-white font-medium px-4`}
@@ -308,10 +310,10 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                           {followUser.isPending ? (
                             <span className="flex items-center">
                               <LoadingSpinner className="w-4 h-4 mr-2" />
-                              {isFollowing ? 'Unfollowing...' : 'Following...'}
+                              {userData?.isFollowing ? 'Unfollowing...' : 'Following...'}
                             </span>
                           ) : (
-                            isFollowing ? 'Following' : 'Follow'
+                            userData?.isFollowing ? 'Following' : 'Follow'
                           )}
                         </Button>
                       </>
@@ -356,14 +358,18 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                     onClick={() => setListType('following')}
                     className="hover:underline flex items-center gap-1"
                   >
-                    <span className="font-bold text-cyan-100">{followStats.following}</span>
+                    <span className="font-bold text-cyan-100">
+                      {userData?.following || 0}
+                    </span>
                     <span className="text-cyan-500">Following</span>
                   </button>
                   <button
                     onClick={() => setListType('followers')}
                     className="hover:underline flex items-center gap-1"
                   >
-                    <span className="font-bold text-cyan-100">{followStats.followers}</span>
+                    <span className="font-bold text-cyan-100">
+                      {userData?.followers || 0}
+                    </span>
                     <span className="text-cyan-500">Followers</span>
                   </button>
                 </div>
@@ -401,9 +407,9 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                       _id: post._id,
                       content: post.content,
                       author: {
-                        _id: userData?.id,
-                        username: userData?.name,
-                        avatar: userData?.avatar
+                        _id: post.author._id,
+                        username: post.author.username,
+                        avatar: post.author.avatar || ''
                       },
                       likes: post.likes || [],
                       reposts: post.reposts || [],

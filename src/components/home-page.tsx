@@ -34,6 +34,21 @@ export function HomePageComponent() {
   const { data: comments = [] } = useComments(expandedPost)
   const { createPost, likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
 
+  // Add debug logging
+  useEffect(() => {
+    console.log('Posts in component:', posts)
+  }, [posts])
+
+  // Add more detailed debug logging
+  useEffect(() => {
+    console.log('Posts data:', {
+      postsLength: posts?.length || 0,
+      firstPost: posts?.[0],
+      isLoading: postsLoading,
+      sessionStatus: session ? 'authenticated' : 'unauthenticated'
+    })
+  }, [posts, postsLoading, session])
+
   // Event Handlers
   const handlePost = async (media?: { type: string; url: string; key: string }[]) => {
     if (!newPost.trim() && (!media || media.length === 0)) {
@@ -182,23 +197,29 @@ export function HomePageComponent() {
                     </p>
                   </div>
                 ) : (
-                  posts.map((post: any) => (
-                    <Post
-                      key={post._id}
-                      post={post}
-                      isExpanded={expandedPost === post._id}
-                      onExpand={setExpandedPost}
-                      onInteraction={handleInteraction}
-                      commentContent={commentContent[post._id] || ''}
-                      onCommentChange={(content) => setCommentContent(prev => ({
-                        ...prev,
-                        [post._id]: content
-                      }))}
-                      showComments={expandedPost === post._id}
-                      comments={expandedPost === post._id ? comments : []}
-                      onDelete={handleDelete}
-                    />
-                  ))
+                  <>
+                    {/* Add debug info */}
+                    <div className="text-xs text-cyan-500 mb-2">
+                      Showing {posts.length} posts
+                    </div>
+                    {posts.map((post: any) => (
+                      <Post
+                        key={post._id}
+                        post={post}
+                        isExpanded={expandedPost === post._id}
+                        onExpand={setExpandedPost}
+                        onInteraction={handleInteraction}
+                        commentContent={commentContent[post._id] || ''}
+                        onCommentChange={(content) => setCommentContent(prev => ({
+                          ...prev,
+                          [post._id]: content
+                        }))}
+                        showComments={expandedPost === post._id}
+                        comments={expandedPost === post._id ? comments : []}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </>
                 )}
               </div>
             </div>

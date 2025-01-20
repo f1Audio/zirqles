@@ -26,7 +26,7 @@ export function Navbar({ onSearchOpen }: NavbarProps) {
   const { data: userData } = useUser(session?.user?.username)
   
   const userInitials = session?.user?.username?.slice(0, 2).toUpperCase() || 'CU'
-  const avatarUrl = userData?.avatar || session?.user?.avatar || session?.user?.image || `/placeholder.svg?height=32&width=32&text=${userInitials}`
+  const avatarUrl = userData?.avatar || session?.user?.avatar || session?.user?.image || ""
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gray-900/80 backdrop-blur-xl border-b border-cyan-500/20 font-mono w-full">

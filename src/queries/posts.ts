@@ -31,10 +31,34 @@ export function usePosts() {
         }
         throw new Error('Failed to fetch posts')
       }
-      const posts = await response.json()
-      return posts || []
+      const data = await response.json()
+      
+      // Add debug logging
+      console.log('API Response:', data)
+      
+      // Handle the response data
+      const postsArray = Array.isArray(data) ? data : data.posts || []
+      
+      return postsArray.map((post: any) => ({
+        _id: post._id,
+        content: post.content,
+        author: {
+          _id: post.author._id,
+          username: post.author.username,
+          avatar: post.author.avatar
+        },
+        likes: post.likes || [],
+        reposts: post.reposts || [],
+        comments: post.comments || [],
+        type: post.type || 'post',
+        depth: post.depth || 0,
+        createdAt: post.createdAt,
+        media: post.media || []
+      }))
     },
-    enabled: !!session, // Only fetch when user is logged in
+    enabled: !!session,
+    staleTime: 1000 * 60,
+    refetchOnWindowFocus: true
   })
 }
 
@@ -317,88 +341,75 @@ export function useUserMutations(session: Session | null) {
       return response.json()
     },
     onMutate: async (username) => {
-      // Cancel any outgoing refetches
+      // Cancel only specific queries
       await Promise.all([
-        queryClient.cancelQueries({ 
-          queryKey: ['user', username],
-          exact: true 
-        }),
-        queryClient.cancelQueries({ 
-          queryKey: ['posts'],
-          exact: true 
-        })
+        queryClient.cancelQueries({ queryKey: ['user', username] }),
+        queryClient.cancelQueries({ queryKey: ['users', username, 'followers'] }),
+        queryClient.cancelQueries({ queryKey: ['users', username, 'following'] })
       ])
 
-      // Snapshot the previous values
-      const previousData = queryClient.getQueryData(['user', username])
-      const previousPosts = queryClient.getQueryData(['posts'])
+      // Get snapshot of previous data
+      const previousData = {
+        user: queryClient.getQueryData(['user', username]),
+        userList: queryClient.getQueryData(['users', username, 'followers']) || 
+                 queryClient.getQueryData(['users', username, 'following'])
+      }
 
-      // Optimistically update to the new value
-      queryClient.setQueryData(['user', username], (old: any) => {
-        if (!old) return old
-        const newIsFollowing = !old.isFollowing
-        return {
+      // Optimistically update both caches
+      if (previousData.user) {
+        queryClient.setQueryData(['user', username], (old: any) => ({
           ...old,
-          isFollowing: newIsFollowing,
-          followers: newIsFollowing ? old.followers + 1 : old.followers - 1
-        }
-      })
-
-      // Also update current user's following count if available
-      if (session?.user?.username) {
-        const previousCurrentUserData = queryClient.getQueryData(['user', session.user.username])
-        queryClient.setQueryData(['user', session.user.username], (old: any) => {
-          if (!old) return old
-          const newIsFollowing = !old.isFollowing
-          return {
-            ...old,
-            following: newIsFollowing ? old.following + 1 : old.following - 1
-          }
-        })
-        return { previousData, previousCurrentUserData, previousPosts }
+          isFollowing: !old.isFollowing,
+          followers: old.followers + (!old.isFollowing ? 1 : -1)
+        }))
       }
 
-      return { previousData, previousPosts }
+      // Update user list if it exists
+      if (previousData.userList) {
+        queryClient.setQueryData(['users', username, 'followers'], (old: any) => ({
+          ...old,
+          users: old.users?.map((user: any) => 
+            user.username === username || user.name === username
+              ? { ...user, isFollowing: !user.isFollowing }
+              : user
+          )
+        }))
+        queryClient.setQueryData(['users', username, 'following'], (old: any) => ({
+          ...old,
+          users: old.users?.map((user: any) => 
+            user.username === username || user.name === username
+              ? { ...user, isFollowing: !user.isFollowing }
+              : user
+          )
+        }))
+      }
+
+      return previousData
     },
-    onError: (err, username, context) => {
-      // Roll back all updates on error
-      queryClient.setQueryData(['user', username], context?.previousData)
-      queryClient.setQueryData(['posts'], context?.previousPosts)
-      if (session?.user?.username) {
-        queryClient.setQueryData(
-          ['user', session.user.username], 
-          context?.previousCurrentUserData
-        )
+    onError: (err, username, context: any) => {
+      // Revert to previous state on error
+      if (context?.user) {
+        queryClient.setQueryData(['user', username], context.user)
       }
-      toast.error('Failed to update follow status')
+      if (context?.userList) {
+        queryClient.setQueryData(['users', username, 'followers'], context.userList)
+        queryClient.setQueryData(['users', username, 'following'], context.userList)
+      }
     },
     onSuccess: (data, username) => {
-      // Invalidate and refetch posts
-      queryClient.invalidateQueries({ queryKey: ['posts'] })
+      // Update both caches with server data
+      queryClient.setQueryData(['user', username], (old: any) => ({
+        ...old,
+        isFollowing: data.isFollowing,
+        followers: data.stats?.target?.followers || old.followers
+      }))
 
-      // Update user data without triggering a refetch
-      queryClient.setQueryData(['user', username], (old: any) => {
-        if (!old) return old
-        return {
-          ...old,
-          isFollowing: data.isFollowing,
-          followers: data.stats.target.followers,
-          following: data.stats.target.following
-        }
-      })
-
-      // Update current user's data if available
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['user', username] })
+      queryClient.invalidateQueries({ queryKey: ['users', username] })
       if (session?.user?.username) {
-        queryClient.setQueryData(['user', session.user.username], (old: any) => {
-          if (!old) return old
-          return {
-            ...old,
-            following: data.stats.current.following
-          }
-        })
+        queryClient.invalidateQueries({ queryKey: ['user', session.user.username] })
       }
-
-     
     }
   })
 

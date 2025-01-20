@@ -31,7 +31,7 @@ export async function POST(
     }
 
     // Check if already following
-    const isFollowing = currentUser.following.includes(targetUser._id)
+    const isFollowing = currentUser.following?.includes(targetUser._id) || false
 
     // Prepare update operations
     const updates = isFollowing 
@@ -57,10 +57,22 @@ export async function POST(
       })
     ])
 
-    // Get updated counts
+    // Get updated counts using aggregation for accuracy
     const [updatedTarget, updatedCurrent] = await Promise.all([
-      User.findById(targetUser._id),
-      User.findById(currentUser._id)
+      User.aggregate([
+        { $match: { _id: targetUser._id } },
+        { $project: {
+          followers: { $size: "$followers" },
+          following: { $size: "$following" }
+        }}
+      ]).then(([user]) => user),
+      User.aggregate([
+        { $match: { _id: currentUser._id } },
+        { $project: {
+          followers: { $size: "$followers" },
+          following: { $size: "$following" }
+        }}
+      ]).then(([user]) => user)
     ])
 
     return NextResponse.json({
@@ -68,12 +80,12 @@ export async function POST(
       isFollowing: !isFollowing,
       stats: {
         target: {
-          followers: updatedTarget?.followers?.length || 0,
-          following: updatedTarget?.following?.length || 0
+          followers: updatedTarget?.followers || 0,
+          following: updatedTarget?.following || 0
         },
         current: {
-          followers: updatedCurrent?.followers?.length || 0,
-          following: updatedCurrent?.following?.length || 0
+          followers: updatedCurrent?.followers || 0,
+          following: updatedCurrent?.following || 0
         }
       }
     })

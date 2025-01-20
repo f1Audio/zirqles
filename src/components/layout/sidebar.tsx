@@ -25,26 +25,7 @@ export function Sidebar() {
     staleTime: 30000
   })
   
-  const { data: unreadMessagesData } = useQuery({
-    queryKey: ['messages', 'unread'],
-    queryFn: async () => {
-      const response = await fetch('/api/messages/unread')
-      if (!response.ok) throw new Error('Failed to fetch unread count')
-      const data = await response.json()
-      return data
-    },
-    refetchInterval: 30000,
-    staleTime: 30000
-  })
-
-  const handleMessageClick = () => {
-    queryClient.setQueryData(['messages', 'unread'], (old: any) => ({
-      count: Math.max(0, (old?.count || 0) - 1)
-    }))
-  }
-  
   const unreadCount = unreadData?.count ?? 0
-  const unreadMessagesCount = unreadMessagesData?.count ?? 0
   
   // Only use session username
   const currentUsername = session?.user?.username
@@ -60,16 +41,14 @@ export function Sidebar() {
     { 
       path: '/messages', 
       label: 'Messages', 
-      icon: Mail,
-      badge: unreadMessagesCount > 0 ? unreadMessagesCount : null,
-      onClick: handleMessageClick
+      icon: Mail
     },
-   {
+    {
       path: `/user/${session?.user?.username}`,
       label: 'Profile', 
       icon: User 
     } 
-  ], [currentUsername, unreadCount, unreadMessagesCount, handleMessageClick])
+  ], [currentUsername, unreadCount])
 
   return (
     <>
@@ -80,7 +59,6 @@ export function Sidebar() {
             <Link 
               key={`${route.path}-${currentUsername}`} 
               href={route.path}
-              onClick={route.onClick}
               className="w-full"
             >
               <Button 
@@ -112,7 +90,6 @@ export function Sidebar() {
             <Link 
               key={`${route.path}-${currentUsername}`} 
               href={route.path}
-              onClick={route.onClick}
             >
               <Button 
                 variant="ghost" 

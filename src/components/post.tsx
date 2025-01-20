@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { InteractionButtons } from './interaction-buttons'
 import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
-import { useUser } from '../queries/user'
 import { UserData } from '@/queries/user'
 import Image from 'next/image'
 import { MoreVertical, Trash2 } from 'lucide-react'
@@ -17,6 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { cn } from '@/lib/utils'
 
 interface Author {
   _id: string
@@ -115,7 +115,6 @@ export function Post({
   const [localIsExpanded, setLocalIsExpanded] = useState(false)
   const [localCommentContent, setLocalCommentContent] = useState('')
   const queryClient = useQueryClient()
-  const { data: authorData } = useUser(post.author?.username)
 
   const prefetchUserData = useCallback(() => {
     if (post.author?.username) {
@@ -206,8 +205,13 @@ export function Post({
         <Link href={`/user/${post.author.username}`}>
           <Avatar className={`flex-shrink-0 ring-2 ring-cyan-500 ring-offset-2 ring-offset-gray-900 cursor-pointer 
             ${post.type === 'comment' ? 'w-8 h-8' : 'w-10 h-10'}`}>
-            <AvatarImage src={authorData?.avatar || post.author.avatar} alt={post.author.username} />
-            <AvatarFallback>{post.author.username[0]}</AvatarFallback>
+            <AvatarImage 
+              src={post.author.avatar} 
+              alt={post.author.username} 
+            />
+            <AvatarFallback className="bg-gray-900 text-cyan-300">
+              {post.author.username[0]?.toUpperCase()}
+            </AvatarFallback>
           </Avatar>
         </Link>
 
