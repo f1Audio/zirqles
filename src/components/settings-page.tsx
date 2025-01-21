@@ -55,32 +55,47 @@ export function SettingsPageComponent() {
 
         setIsLoading(true)
         
-        // Use API route instead of direct model access
-        const response = await fetch('/api/user')
+        // Update the API endpoint to use the correct path
+        const response = await fetch(`/api/users/${session.user.username}`)
         if (!response.ok) {
           throw new Error('Failed to fetch user data')
         }
         
         const userData = await response.json()
+        console.log('Fetched user data:', userData) // Debug log
         
+        // Make sure we're setting all the fields from the response
         setAvatar(userData.avatar || "")
-        setUsername(userData.username || "")
-        setEmail(userData.email || "")
+        setUsername(userData.username || session.user.username || "") // Fallback to session username
+        setEmail(userData.email || session.user.email || "") // Fallback to session email
         setBio(userData.bio || "")
         setLocation(userData.location || "")
         setWebsite(userData.website || "")
       } catch (error) {
         console.error('Error loading user data:', error)
         toast.error('Failed to load user data')
+        
+        // Set default values from session if API fails
+        if (session?.user) {
+          setUsername(session.user.username || "")
+          setEmail(session.user.email || "")
+        }
       } finally {
         setIsLoading(false)
       }
     }
 
-    if (session?.user?.email) {
+    // Initialize with session data immediately
+    if (session?.user) {
+      setUsername(session.user.username || "")
+      setEmail(session.user.email || "")
+    }
+
+    // Then load full data if we have the username
+    if (session?.user?.username) {
       loadUserData()
     }
-  }, [session, router])
+  }, [session?.user?.username, router])
 
   // Add proper loading state check
   if (status === "loading" || isLoading) {
@@ -206,10 +221,12 @@ export function SettingsPageComponent() {
     try {
       setIsProfileUpdating(true)
       
-      // Get the old username from the session for cache updates
       const oldUsername = session?.user?.username
+      
+      if (!oldUsername) {
+        throw new Error('No username found in session')
+      }
 
-      // Prepare update data
       const updateData = {
         username,
         email,
@@ -219,20 +236,11 @@ export function SettingsPageComponent() {
         avatar
       }
 
-      // Update user in MongoDB
-      const response = await fetch(`/api/users/${session?.user?.username}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData),
-      })
-
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || 'Failed to update profile')
-      }
+      // Update user data
+      await updateUser(updateData)
 
       // Update Stream user if username changed
-      if (session?.user?.id && username !== session?.user?.username) {
+      if (session?.user?.id && username !== oldUsername) {
         await fetch('/api/stream/user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -244,17 +252,7 @@ export function SettingsPageComponent() {
         })
       }
 
-      // Update the session with new data
-      await update({
-        ...session,
-        user: {
-          ...session?.user,
-          username,
-          avatar: avatar || session?.user?.avatar
-        }
-      })
-
-      // Then invalidate to ensure consistency
+      // Invalidate queries first
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['user'] }),
         queryClient.invalidateQueries({ queryKey: ['user', username] }),
@@ -262,15 +260,27 @@ export function SettingsPageComponent() {
         oldUsername && queryClient.invalidateQueries({ queryKey: ['user', oldUsername] }),
         queryClient.invalidateQueries({ queryKey: ['userPosts'] })
       ])
+
+      // Force refetch posts
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['posts'] }),
+        queryClient.refetchQueries({ queryKey: ['userPosts'] })
+      ])
+
+      // Update session last, and handle any errors silently
+      try {
+        // Trigger a session refresh without passing data
+        await fetch('/api/auth/session', { method: 'GET' })
+      } catch (sessionError) {
+        console.warn('Session refresh warning:', sessionError)
+        // Don't throw error as the main update was successful
+      }
       
       toast.success('Profile updated successfully')
 
-      // Force refetch of posts to ensure consistency
-      queryClient.refetchQueries({ queryKey: ['posts'] })
-      queryClient.refetchQueries({ queryKey: ['userPosts'] })
     } catch (error: any) {
+      console.error('Profile update error:', error)
       toast.error(error.message || 'Failed to update profile')
-      console.error(error)
     } finally {
       setIsProfileUpdating(false)
     }
