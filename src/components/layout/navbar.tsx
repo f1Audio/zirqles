@@ -13,8 +13,7 @@ import {
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { useUser } from '@/queries/user'
-import { UserData } from '@/queries/user'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 interface NavbarProps {
   onSearchOpen: () => void
@@ -23,10 +22,24 @@ interface NavbarProps {
 export function Navbar({ onSearchOpen }: NavbarProps) {
   const router = useRouter()
   const { data: session } = useSession()
-  const { data: userData } = useUser(session?.user?.username)
+  const queryClient = useQueryClient()
   
+  const { data: userData } = useQuery({
+    queryKey: ['user', session?.user?.username],
+    queryFn: async () => {
+      if (!session?.user?.username) return null
+      const response = await fetch(`/api/users/${session.user.username}`)
+      if (!response.ok) throw new Error('Failed to fetch user data')
+      return response.json()
+    },
+    enabled: !!session?.user?.username,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
+  })
+
   const userInitials = session?.user?.username?.slice(0, 2).toUpperCase() || 'CU'
-  const avatarUrl = userData?.avatar || session?.user?.avatar || session?.user?.image || ""
+  const avatarUrl = userData?.avatar || session?.user?.avatar || ""
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gray-900/80 backdrop-blur-xl border-b border-cyan-500/20 font-mono w-full">

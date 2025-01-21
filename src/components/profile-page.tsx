@@ -112,6 +112,19 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     enabled: !!username
   })
 
+  const { data: currentUserData } = useQuery({
+    queryKey: ['user', session?.user?.username],
+    queryFn: async () => {
+      const response = await fetch(`/api/users/${session?.user?.username}`)
+      if (!response.ok) throw new Error('Failed to fetch user data')
+      return response.json()
+    },
+    enabled: !!session?.user?.username && session?.user?.username === username,
+    staleTime: 1000 * 60 * 5,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true
+  })
+
   const { data: userPosts = [] } = useQuery({
     queryKey: ['user', username, 'posts'],
     queryFn: async () => {
@@ -225,8 +238,8 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     ? session.user.username 
     : userData?.name || session?.user?.username || 'Loading...'
 
-  const displayAvatar = session?.user?.username === username
-    ? session.user.avatar
+  const displayAvatar = isOwnProfile
+    ? currentUserData?.avatar || session?.user?.avatar
     : userData?.avatar || session?.user?.avatar
 
   const avatarSection = (

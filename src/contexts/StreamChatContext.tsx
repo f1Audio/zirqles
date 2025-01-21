@@ -55,7 +55,7 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
         await streamClient.connectUser(
           {
             id: session.user.id,
-            name: session.user.name ?? '',
+            name: session.user.username ?? '',
             image: session.user.image ?? '',
           },
           token

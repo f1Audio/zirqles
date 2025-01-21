@@ -177,40 +177,28 @@ export function useUpdateAvatar() {
         }
       })
 
-      // Update all caches with actual URL
-      const updateDataWithNewAvatar = (data: any[] | undefined) => {
-        if (!Array.isArray(data)) return []
-        return data.map(item => updatePostAvatar(item, userId, newAvatar))
-      }
-
-      // Update all relevant caches
-      queryClient.setQueriesData({ queryKey: ['user'] }, (old: any) => ({
-        ...old,
-        avatar: newAvatar
-      }))
-
-      queryClient.setQueriesData(
-        { queryKey: ['user', session?.user?.username] },
-        (old: any) => ({
-          ...old,
-          avatar: newAvatar
-        })
-      )
-
-      queryClient.setQueriesData(
-        { queryKey: ['user', session?.user?.username, 'posts'] },
-        updateDataWithNewAvatar
-      )
-      queryClient.setQueriesData({ queryKey: ['posts'] }, updateDataWithNewAvatar)
-      queryClient.setQueriesData({ queryKey: ['replies'] }, updateDataWithNewAvatar)
-
-      // Force refetch to ensure consistency
+      // Invalidate all relevant queries
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['user'] }),
         queryClient.invalidateQueries({ queryKey: ['user', session?.user?.username] }),
-        queryClient.invalidateQueries({ queryKey: ['user', session?.user?.username, 'posts'] }),
         queryClient.invalidateQueries({ queryKey: ['posts'] }),
-        queryClient.invalidateQueries({ queryKey: ['replies'] })
+        queryClient.invalidateQueries({ queryKey: ['userPosts'] }),
+        // Add specific invalidation for the navbar query
+        session?.user?.username && queryClient.invalidateQueries({ 
+          queryKey: ['user', session.user.username] 
+        })
+      ])
+
+      // Force immediate refetch of critical queries
+      await Promise.all([
+        queryClient.refetchQueries({ 
+          queryKey: ['user', session?.user?.username],
+          exact: true
+        }),
+        queryClient.refetchQueries({
+          queryKey: ['user'],
+          exact: true
+        })
       ])
     }
   })
