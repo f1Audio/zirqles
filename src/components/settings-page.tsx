@@ -114,43 +114,32 @@ export function SettingsPageComponent() {
       // Optimize image
       const optimizedImage = await optimizeImage(file);
       
-      // Use the mutation
+      // Use the mutation - this will handle session update in its onSuccess callback
       const result = await updateAvatarMutation.mutateAsync({
         file: optimizedImage as File,
         oldAvatar: avatar,
         userId: session?.user?.id as string
       });
 
-      // Update local state and session
-      setAvatar(result.avatar);
-      await update({
-        ...session,
-        user: {
-          ...session?.user,
-          avatar: result.avatar
-        }
-      });
+      // Update local state
+      setAvatar(result);
 
-      // Invalidate relevant queries first
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['user'] }),
-        queryClient.invalidateQueries({ queryKey: ['posts'] }),
-        queryClient.invalidateQueries({ queryKey: ['userPosts'] })
-      ]);
+      // Wait for queries to be invalidated and refetched (handled by mutation)
+      await queryClient.refetchQueries({ queryKey: ['user'] });
 
-      // Get fresh user data after updates
+      // Get fresh user data after mutation and refetch
       const userResponse = await fetch('/api/user');
       const userData = await userResponse.json();
 
-      // Now update Stream chat with confirmed new avatar
+      // Update Stream chat with fresh data
       if (session?.user?.id) {
         await fetch('/api/stream/user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             targetUserId: session.user.id,
-            name: username || session.user.username!,
-            avatar: userData.avatar // Use the fresh avatar URL from user data
+            name: userData.username,
+            avatar: userData.avatar // Use fresh avatar URL
           }),
         });
       }
@@ -291,7 +280,7 @@ export function SettingsPageComponent() {
 
       const updatedUser = await response.json()
 
-      // Update session
+      // Force session update with fresh data
       await update({
         ...session,
         user: {
@@ -300,7 +289,7 @@ export function SettingsPageComponent() {
           email: updatedUser.email,
           avatar: updatedUser.avatar
         }
-      })
+      });
 
       // Update Stream chat user data with updatedUser data
       if (session?.user?.id) {
