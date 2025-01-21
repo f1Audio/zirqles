@@ -27,8 +27,19 @@ export function Sidebar() {
   
   const unreadCount = unreadData?.count ?? 0
   
-  // Only use session username
-  const currentUsername = session?.user?.username
+  // Add query to get current user data
+  const { data: userData } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const response = await fetch('/api/user')
+      if (!response.ok) throw new Error('Failed to fetch user data')
+      return response.json()
+    },
+    enabled: !!session?.user?.email
+  })
+  
+  // Use userData.username instead of session username
+  const currentUsername = userData?.username || session?.user?.username
 
   const routes = useMemo(() => [
     { path: '/', label: 'Home', icon: Home },
@@ -44,7 +55,7 @@ export function Sidebar() {
       icon: Mail
     },
     {
-      path: `/user/${session?.user?.username}`,
+      path: `/user/${currentUsername}`,
       label: 'Profile', 
       icon: User 
     } 

@@ -80,6 +80,11 @@ export function SearchDialog({ open, onOpenChange, onUserSelect }: SearchDialogP
       <DialogRoot.Portal>
         <DialogRoot.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
         <DialogRoot.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[95vw] sm:w-[90vw] max-w-[550px] translate-x-[-50%] translate-y-[-50%] rounded-2xl bg-gray-900/95 shadow-2xl focus:outline-none border border-cyan-500/30 backdrop-blur-xl overflow-hidden">
+        <DialogRoot.Title className="sr-only">Search Users
+        </DialogRoot.Title>
+        <DialogRoot.Description  className="sr-only">
+          Search for users by username
+        </DialogRoot.Description>
           <div className="p-6 pb-4">
             <div className="flex items-center space-x-2">
               <Search className="h-5 w-5 text-cyan-400" />
@@ -114,7 +119,7 @@ export function SearchDialog({ open, onOpenChange, onUserSelect }: SearchDialogP
                     >
                       <Avatar className="h-8 w-8 ring-2 ring-cyan-500 ring-offset-2 ring-offset-gray-900 flex-shrink-0">
                         <AvatarImage 
-                          src={user.avatar || `/placeholder.svg?height=32&width=32&text=${user.username.charAt(0)}`} 
+                          src={user.avatar || `${user.username.charAt(0)}`} 
                           alt={user.username}
                         />
                         <AvatarFallback className="bg-cyan-900 text-cyan-100">

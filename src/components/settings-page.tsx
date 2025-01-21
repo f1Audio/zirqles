@@ -22,6 +22,8 @@ import { userQueryKeys } from '../queries/user'
 import { UserData } from '@/queries/user'
 import { useUpdateAvatar } from '../queries/user'
 
+// Add this import for the user API endpoint
+const USER_API_ENDPOINT = '/api/user'
 
 export function SettingsPageComponent() {
   const router = useRouter()
@@ -55,19 +57,18 @@ export function SettingsPageComponent() {
 
         setIsLoading(true)
         
-        // Update the API endpoint to use the correct path
-        const response = await fetch(`/api/users/${session.user.username}`)
+        // Use the user API endpoint directly
+        const response = await fetch('/api/user')
         if (!response.ok) {
           throw new Error('Failed to fetch user data')
         }
         
         const userData = await response.json()
-        console.log('Fetched user data:', userData) // Debug log
         
-        // Make sure we're setting all the fields from the response
+        // Set all fields from the response
         setAvatar(userData.avatar || "")
-        setUsername(userData.username || session.user.username || "") // Fallback to session username
-        setEmail(userData.email || session.user.email || "") // Fallback to session email
+        setUsername(userData.username || "")
+        setEmail(userData.email || "")
         setBio(userData.bio || "")
         setLocation(userData.location || "")
         setWebsite(userData.website || "")
@@ -75,7 +76,7 @@ export function SettingsPageComponent() {
         console.error('Error loading user data:', error)
         toast.error('Failed to load user data')
         
-        // Set default values from session if API fails
+        // Set defaults from session
         if (session?.user) {
           setUsername(session.user.username || "")
           setEmail(session.user.email || "")
@@ -85,17 +86,10 @@ export function SettingsPageComponent() {
       }
     }
 
-    // Initialize with session data immediately
     if (session?.user) {
-      setUsername(session.user.username || "")
-      setEmail(session.user.email || "")
-    }
-
-    // Then load full data if we have the username
-    if (session?.user?.username) {
       loadUserData()
     }
-  }, [session?.user?.username, router])
+  }, [session?.user, router])
 
   // Add proper loading state check
   if (status === "loading" || isLoading) {
@@ -121,11 +115,45 @@ export function SettingsPageComponent() {
       const optimizedImage = await optimizeImage(file);
       
       // Use the mutation
-      await updateAvatarMutation.mutateAsync({
+      const result = await updateAvatarMutation.mutateAsync({
         file: optimizedImage as File,
         oldAvatar: avatar,
         userId: session?.user?.id as string
       });
+
+      // Update local state and session
+      setAvatar(result.avatar);
+      await update({
+        ...session,
+        user: {
+          ...session?.user,
+          avatar: result.avatar
+        }
+      });
+
+      // Invalidate relevant queries first
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['user'] }),
+        queryClient.invalidateQueries({ queryKey: ['posts'] }),
+        queryClient.invalidateQueries({ queryKey: ['userPosts'] })
+      ]);
+
+      // Get fresh user data after updates
+      const userResponse = await fetch('/api/user');
+      const userData = await userResponse.json();
+
+      // Now update Stream chat with confirmed new avatar
+      if (session?.user?.id) {
+        await fetch('/api/stream/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetUserId: session.user.id,
+            name: username || session.user.username!,
+            avatar: userData.avatar // Use the fresh avatar URL from user data
+          }),
+        });
+      }
 
       toast.success('Profile picture updated successfully');
     } catch (error) {
@@ -149,12 +177,12 @@ export function SettingsPageComponent() {
 
         if (width > height) {
           if (width > maxSize) {
-            height *= maxSize / width;
+            height = Math.round(height * (maxSize / width));
             width = maxSize;
           }
         } else {
           if (height > maxSize) {
-            width *= maxSize / height;
+            width = Math.round(width * (maxSize / height));
             height = maxSize;
           }
         }
@@ -163,20 +191,34 @@ export function SettingsPageComponent() {
         canvas.height = height;
 
         // Draw and optimize
-        ctx?.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob(
-          (blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error('Failed to optimize image'));
-          },
-          'image/jpeg',
-          0.8 // Quality setting
-        );
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                // Clean up
+                URL.revokeObjectURL(img.src);
+                resolve(blob);
+              } else {
+                reject(new Error('Failed to optimize image'));
+              }
+            },
+            'image/jpeg',
+            0.8
+          );
+        } else {
+          reject(new Error('Failed to get canvas context'));
+        }
       };
 
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(file);
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        reject(new Error('Failed to load image'));
+      };
+
+      // Create object URL
+      const objectUrl = URL.createObjectURL(file);
+      img.src = objectUrl;
     });
   }
 
@@ -227,57 +269,62 @@ export function SettingsPageComponent() {
         throw new Error('No username found in session')
       }
 
-      const updateData = {
-        username,
-        email,
-        bio,
-        location,
-        website,
-        avatar
+      const response = await fetch('/api/user', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          email,
+          bio,
+          location,
+          website,
+          avatar
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to update profile')
       }
 
-      // Update user data
-      await updateUser(updateData)
+      const updatedUser = await response.json()
 
-      // Update Stream user if username changed
-      if (session?.user?.id && username !== oldUsername) {
+      // Update session
+      await update({
+        ...session,
+        user: {
+          ...session?.user,
+          username: updatedUser.username,
+          email: updatedUser.email,
+          avatar: updatedUser.avatar
+        }
+      })
+
+      // Update Stream chat user data with updatedUser data
+      if (session?.user?.id) {
         await fetch('/api/stream/user', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             targetUserId: session.user.id,
-            name: username,
-            avatar: avatar || session.user.avatar
+            name: updatedUser.username,
+            avatar: updatedUser.avatar
           }),
-        })
+        });
       }
 
-      // Invalidate queries first
+      // Invalidate all relevant queries
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['user'] }),
-        queryClient.invalidateQueries({ queryKey: ['user', username] }),
+        queryClient.invalidateQueries({ queryKey: ['user', updatedUser.username] }),
         queryClient.invalidateQueries({ queryKey: ['posts'] }),
         oldUsername && queryClient.invalidateQueries({ queryKey: ['user', oldUsername] }),
         queryClient.invalidateQueries({ queryKey: ['userPosts'] })
       ])
 
-      // Force refetch posts
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ['posts'] }),
-        queryClient.refetchQueries({ queryKey: ['userPosts'] })
-      ])
-
-      // Update session last, and handle any errors silently
-      try {
-        // Trigger a session refresh without passing data
-        await fetch('/api/auth/session', { method: 'GET' })
-      } catch (sessionError) {
-        console.warn('Session refresh warning:', sessionError)
-        // Don't throw error as the main update was successful
-      }
-      
       toast.success('Profile updated successfully')
-
     } catch (error: any) {
       console.error('Profile update error:', error)
       toast.error(error.message || 'Failed to update profile')

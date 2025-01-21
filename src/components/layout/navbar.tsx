@@ -25,20 +25,21 @@ export function Navbar({ onSearchOpen }: NavbarProps) {
   const queryClient = useQueryClient()
   
   const { data: userData } = useQuery({
-    queryKey: ['user', session?.user?.username],
+    queryKey: ['user'],
     queryFn: async () => {
-      if (!session?.user?.username) return null
-      const response = await fetch(`/api/users/${session.user.username}`)
+      const response = await fetch('/api/user')
       if (!response.ok) throw new Error('Failed to fetch user data')
       return response.json()
     },
-    enabled: !!session?.user?.username,
+    enabled: !!session?.user?.email,
     staleTime: 1000 * 60 * 5, // 5 minutes
     refetchOnMount: true,
     refetchOnWindowFocus: true
   })
 
-  const userInitials = session?.user?.username?.slice(0, 2).toUpperCase() || 'CU'
+  const userInitials = userData?.username?.slice(0, 2).toUpperCase() || 
+                      session?.user?.username?.slice(0, 2).toUpperCase() || 
+                      'CU'
   const avatarUrl = userData?.avatar || session?.user?.avatar || ""
 
   return (
@@ -59,7 +60,7 @@ export function Navbar({ onSearchOpen }: NavbarProps) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Avatar className="h-8 w-8 ring-2 ring-cyan-500/50 ring-offset-2 ring-offset-gray-900 cursor-pointer hover:opacity-80 transition-opacity duration-300">
-                <AvatarImage src={avatarUrl} alt={session?.user?.username || '@user'} />
+                <AvatarImage src={avatarUrl} alt={userData?.username || session?.user?.username || '@user'} />
                 <AvatarFallback className="bg-cyan-900/50 text-cyan-100">{userInitials}</AvatarFallback>
               </Avatar>
             </DropdownMenuTrigger>

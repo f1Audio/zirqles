@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useQuery } from '@tanstack/react-query'
 import { usePosts, useComments, usePostMutations } from '@/queries/posts'
 import { Navbar } from './layout/navbar'
 import { Sidebar } from './layout/sidebar'
@@ -34,20 +34,32 @@ export function HomePageComponent() {
   const { data: comments = [] } = useComments(expandedPost)
   const { createPost, likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
 
+  // Add the user query
+  const { data: userData } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const response = await fetch('/api/user')
+      if (!response.ok) throw new Error('Failed to fetch user data')
+      return response.json()
+    },
+    enabled: !!session?.user?.email
+  })
+
   // Add debug logging
   useEffect(() => {
     console.log('Posts in component:', posts)
   }, [posts])
 
-  // Add more detailed debug logging
+  // Use userData instead of session user data
   useEffect(() => {
     console.log('Posts data:', {
       postsLength: posts?.length || 0,
       firstPost: posts?.[0],
       isLoading: postsLoading,
-      sessionStatus: session ? 'authenticated' : 'unauthenticated'
+      sessionStatus: session ? 'authenticated' : 'unauthenticated',
+      currentUser: userData?.username // Use userData here
     })
-  }, [posts, postsLoading, session])
+  }, [posts, postsLoading, session, userData])
 
   // Event Handlers
   const handlePost = async (media?: { type: string; url: string; key: string }[]) => {
@@ -128,20 +140,6 @@ export function HomePageComponent() {
       }
     })
   }
-
-  useEffect(() => {
-    // Prefetch current user's profile data
-    if (session?.user?.username) {
-      queryClient.prefetchQuery({
-        queryKey: ['user', session.user.username],
-        queryFn: async () => {
-          const response = await fetch(`/api/users/${session.user.username}`)
-          if (!response.ok) throw new Error('Failed to fetch user data')
-          return response.json()
-        }
-      })
-    }
-  }, [session?.user?.username, queryClient])
 
   const handleDelete = async (postId: string) => {
     try {

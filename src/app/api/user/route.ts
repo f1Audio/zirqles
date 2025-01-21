@@ -12,40 +12,39 @@ import mongoose from 'mongoose';
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     await dbConnect()
 
-    // Use aggregation to get accurate counts
-    const [userData] = await User.aggregate([
-      { $match: { _id: new mongoose.Types.ObjectId(session.user.id) } },
-      {
-        $project: {
-          _id: 1,
-          username: 1,
-          avatar: 1,
-          followers: { $size: { $ifNull: ["$followers", []] } },
-          following: { $size: { $ifNull: ["$following", []] } }
-        }
-      }
-    ])
+    const user = await User.findOne(
+      { email: session.user.email },
+      '_id username email avatar bio location website followers following createdAt'
+    ).lean()
 
-    if (!userData) {
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    return NextResponse.json({
-      _id: userData._id.toString(),
-      username: userData.username,
-      avatar: userData.avatar,
-      followers: userData.followers,
-      following: userData.following
-    })
+    // Format response to match PATCH endpoint
+    const response = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+      bio: user.bio || '',
+      location: user.location || '',
+      website: user.website || '',
+      followers: user.followers?.length || 0,
+      following: user.following?.length || 0,
+      createdAt: user.createdAt
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
-    console.error('Error fetching user:', error)
-    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
+    console.error('GET /api/user error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
@@ -58,16 +57,16 @@ export async function PATCH(request: Request) {
     }
 
     const data = await request.json()
-    const { username, email, bio, location, website } = data
+    const { username, email, bio, location, website, avatar } = data
 
     // Validate input
-    if (!username && !email && !bio && !location && !website) {
+    if (!username && !email && !bio && !location && !website && !avatar) {
       return NextResponse.json({ error: 'No data to update' }, { status: 400 })
     }
 
     await dbConnect()
 
-    // Check if username is already taken by another user
+    // Username uniqueness check
     if (username && username !== session.user.username) {
       const existingUser = await User.findOne({ 
         username,
@@ -82,7 +81,7 @@ export async function PATCH(request: Request) {
       }
     }
 
-    // Check if email is already taken
+    // Email uniqueness check
     if (email && email !== session.user.email) {
       const existingUser = await User.findOne({ 
         email,
@@ -104,12 +103,34 @@ export async function PATCH(request: Request) {
         ...(email && { email }),
         ...(bio !== undefined && { bio }),
         ...(location !== undefined && { location }),
-        ...(website !== undefined && { website })
+        ...(website !== undefined && { website }),
+        ...(avatar && { avatar })
       },
-      { new: true, select: 'id username email avatar bio location website' }
+      { 
+        new: true, 
+        select: '_id username email avatar bio location website followers following createdAt'
+      }
     )
 
-    return NextResponse.json(updatedUser)
+    if (!updatedUser) {
+      return NextResponse.json({ error: 'Failed to update user' }, { status: 404 })
+    }
+
+    // Format the response
+    const response = {
+      _id: updatedUser._id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      avatar: updatedUser.avatar,
+      bio: updatedUser.bio,
+      location: updatedUser.location,
+      website: updatedUser.website,
+      followers: updatedUser.followers?.length || 0,
+      following: updatedUser.following?.length || 0,
+      createdAt: updatedUser.createdAt
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('PATCH /api/user error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

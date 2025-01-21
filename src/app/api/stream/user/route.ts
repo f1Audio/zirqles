@@ -27,14 +27,17 @@ export async function POST(req: Request) {
     }
 
     try {
-      await serverClient.upsertUsers([
-        {
-          id: targetUserId,
-          name: name || '',
-          image: avatar,
-          role: 'user'
-        }
-      ])
+      // Make sure we're sending all fields to Stream
+      const userData = {
+        id: targetUserId,
+        name: name || session.user.username || '',
+        image: avatar || session.user.avatar || session.user.image, // Fallback to existing avatar
+        role: 'user'
+      };
+
+      console.log('Updating Stream user with:', userData);
+
+      await serverClient.upsertUsers([userData]);
 
       return NextResponse.json({ success: true })
     } catch (streamError) {

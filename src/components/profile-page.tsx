@@ -91,8 +91,18 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
   const { data: comments = [] } = useComments(expandedPost)
   const [listType, setListType] = useState<'followers' | 'following' | null>(null)
 
-  const { data: userData, isLoading: isUserDataLoading } = useQuery({
-    queryKey: ['user', username],
+  const { data: currentUser } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const response = await fetch('/api/user')
+      if (!response.ok) throw new Error('Failed to fetch user data')
+      return response.json()
+    },
+    enabled: !!session?.user?.email
+  })
+
+  const { data: userData, isLoading: userLoading } = useQuery({
+    queryKey: ['profile', username],
     queryFn: async () => {
       const response = await fetch(`/api/users/${username}`)
       if (!response.ok) {
@@ -100,29 +110,11 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
           router.push('/404')
           return null
         }
-        throw new Error('Failed to fetch user data')
+        throw new Error('Failed to fetch profile data')
       }
       return response.json()
     },
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 30,
-    retry: 3,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
     enabled: !!username
-  })
-
-  const { data: currentUserData } = useQuery({
-    queryKey: ['user', session?.user?.username],
-    queryFn: async () => {
-      const response = await fetch(`/api/users/${session?.user?.username}`)
-      if (!response.ok) throw new Error('Failed to fetch user data')
-      return response.json()
-    },
-    enabled: !!session?.user?.username && session?.user?.username === username,
-    staleTime: 1000 * 60 * 5,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true
   })
 
   const { data: userPosts = [] } = useQuery({
@@ -232,14 +224,14 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     }
   }
 
-  const isOwnProfile = session?.user?.username === username
+  const isOwnProfile = currentUser?.username === username
 
   const displayName = session?.user?.username === username 
     ? session.user.username 
     : userData?.name || session?.user?.username || 'Loading...'
 
   const displayAvatar = isOwnProfile
-    ? currentUserData?.avatar || session?.user?.avatar
+    ? currentUser?.avatar || session?.user?.avatar
     : userData?.avatar || session?.user?.avatar
 
   const avatarSection = (
@@ -254,7 +246,7 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     </Avatar>
   )
 
-  if (isUserDataLoading || !userData) {
+  if (userLoading || !userData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-cyan-300 font-mono">
         <div className="min-h-[calc(100vh-4rem)] pt-14">
