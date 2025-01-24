@@ -366,6 +366,9 @@ export function SettingsPageComponent() {
     }
   }
 
+  // Add this before the return statement
+  const isPasswordFormComplete = currentPassword && newPassword && confirmPassword
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-cyan-300 font-sans">
       <Navbar onSearchOpen={() => setIsSearchOpen(true)} />
@@ -518,33 +521,16 @@ export function SettingsPageComponent() {
                         </div>
                       </div>
                       <Button 
-                        className="w-full bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white font-medium rounded-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-md hover:shadow-cyan-500/20"
+                        className="w-full bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white font-medium rounded-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-md hover:shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={handlePasswordUpdate}
-                        disabled={isPasswordUpdating}
+                        disabled={isPasswordUpdating || !isPasswordFormComplete}
                       >
                         {isPasswordUpdating ? "Updating..." : "Change Password"}
                       </Button>
                     </div>
                   </div>
 
-                  {/* Preferences Section */}
-                  <div className="bg-cyan-900/20 rounded-2xl p-6 backdrop-blur-sm border border-cyan-500/20 shadow-md shadow-cyan-500/5 hover:shadow-cyan-400/10 transition-all duration-300">
-                    <h2 className="text-xl font-semibold mb-6">Preferences</h2>
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="notifications" className="text-sm font-medium text-cyan-300">Enable Notifications</Label>
-                        <Switch id="notifications" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="dark-mode" className="text-sm font-medium text-cyan-300">Dark Mode</Label>
-                        <Switch id="dark-mode" defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="two-factor" className="text-sm font-medium text-cyan-300">Two-Factor Authentication</Label>
-                        <Switch id="two-factor" />
-                      </div>
-                    </div>
-                  </div>
+                 
 
                   <Separator className="my-8 bg-cyan-500/30" />
 
