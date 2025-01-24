@@ -19,6 +19,7 @@ interface StreamChatContextType {
   setActiveChannel: (channel: Channel | null) => void
   createChat: (targetUserId: string) => Promise<Channel | undefined>
   unreadCount: number
+  totalUnreadCount: number
 }
 
 const StreamChatContext = createContext<StreamChatContextType>({
@@ -27,6 +28,7 @@ const StreamChatContext = createContext<StreamChatContextType>({
   setActiveChannel: () => {},
   createChat: async () => undefined,
   unreadCount: 0,
+  totalUnreadCount: 0
 })
 
 function StreamChatProviderWithSession({ children }: { children: React.ReactNode }) {
@@ -34,6 +36,7 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
   const [client, setClient] = useState<StreamChat | null>(null)
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [totalUnreadCount, setTotalUnreadCount] = useState(0)
 
   useEffect(() => {
     if (!streamClient || !session?.user?.id) {
@@ -42,6 +45,7 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
       }
       setClient(null)
       setUnreadCount(0)
+      setTotalUnreadCount(0)
       return
     }
 
@@ -64,22 +68,37 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
         if (!didCancel) {
           setClient(streamClient)
           
-          // Get initial unread count
+          // Get initial unread count from all channels
           const filter = { type: 'messaging', members: { $in: [session.user.id] } }
           const channels = await streamClient.queryChannels(filter)
           const total = channels.reduce((acc, channel) => acc + channel.state.unreadCount, 0)
-          setUnreadCount(total)
+          setTotalUnreadCount(total)
 
           // Listen for message.new events
           streamClient.on('message.new', (event) => {
             if (event.user?.id !== session.user.id) {
-              setUnreadCount(prev => prev + 1)
+              setTotalUnreadCount(prev => prev + 1)
             }
           })
 
-          // Listen for message.read events
+          // Listen for notification.mark_read events
+          streamClient.on('notification.mark_read', (event) => {
+            // Update total unread count when a channel is marked as read
+            const filter = { type: 'messaging', members: { $in: [session.user.id] } }
+            streamClient.queryChannels(filter).then(channels => {
+              const total = channels.reduce((acc, channel) => acc + channel.state.unreadCount, 0)
+              setTotalUnreadCount(total)
+            })
+          })
+
+          // Add message.read event listener
           streamClient.on('message.read', () => {
-            setUnreadCount(prev => Math.max(0, prev - 1))
+            // Update total unread count when messages are marked as read
+            const filter = { type: 'messaging', members: { $in: [session.user.id] } }
+            streamClient.queryChannels(filter).then(channels => {
+              const total = channels.reduce((acc, channel) => acc + channel.state.unreadCount, 0)
+              setTotalUnreadCount(total)
+            })
           })
         }
       } catch (error) {
@@ -99,6 +118,7 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
       }
       setClient(null)
       setUnreadCount(0)
+      setTotalUnreadCount(0)
     }
   }, [session?.user?.id])
 
@@ -173,8 +193,9 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
     activeChannel,
     setActiveChannel,
     createChat,
-    unreadCount
-  }), [client, activeChannel, unreadCount])
+    unreadCount,
+    totalUnreadCount
+  }), [client, activeChannel, unreadCount, totalUnreadCount])
 
   return (
     <StreamChatContext.Provider value={value}>

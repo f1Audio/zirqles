@@ -8,10 +8,12 @@ import { useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { AvatarFallback } from '@/components/ui/avatar'
+import { useStreamChat } from '@/contexts/StreamChatContext'
 
 export function Sidebar() {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
+  const { totalUnreadCount } = useStreamChat()
   
   const { data: unreadData } = useQuery({
     queryKey: ['notifications', 'unread'],
@@ -52,14 +54,15 @@ export function Sidebar() {
     { 
       path: '/messages', 
       label: 'Messages', 
-      icon: Mail
+      icon: Mail,
+      badge: totalUnreadCount > 0 ? totalUnreadCount : null
     },
     {
       path: `/user/${currentUsername}`,
       label: 'Profile', 
       icon: User 
     } 
-  ], [currentUsername, unreadCount])
+  ], [currentUsername, unreadCount, totalUnreadCount])
 
   return (
     <>

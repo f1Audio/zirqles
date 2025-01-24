@@ -74,10 +74,28 @@ export function ChatPageComponent() {
     }
   }
 
-  const handleChannelSelect = (channel: StreamChannel) => {
-    setActiveChannel(channel)
-    channel.watch()
-    setShowMobileChat(true)
+  const handleChannelSelect = async (channel: StreamChannel) => {
+    try {
+      // Set active channel and show mobile chat first for immediate UI response
+      setActiveChannel(channel)
+      setShowMobileChat(true)
+      
+      // Then watch channel and mark all messages as read
+      await channel.watch()
+      
+      // Mark channel as read - this will mark all messages as read
+      await channel.markRead()
+      
+      // Update unread counts in the StreamChatContext
+      if (client) {
+        const filter = { type: 'messaging', members: { $in: [client.userID || ''] } }
+        const channels = await client.queryChannels(filter)
+        const total = channels.reduce((acc, channel) => acc + channel.state.unreadCount, 0)
+        // The totalUnreadCount will be automatically updated through the StreamChatContext
+      }
+    } catch (error) {
+      console.error('Error watching/marking channel:', error)
+    }
   }
 
   const handleBackToList = () => {
@@ -122,12 +140,10 @@ export function ChatPageComponent() {
                       
                       return (
                         <div 
-                          className={`p-3 hover:bg-gray-800 rounded-lg cursor-pointer transition-all duration-200 ${
+                          className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
                             previewProps.channel?.id === activeChannel?.id 
-                              ? 'bg-gray-800' 
-                              : hasUnread 
-                                ? 'bg-cyan-900/30 border border-cyan-500/30' 
-                                : ''
+                              ? 'md:bg-cyan-900/40 md:hover:bg-cyan-900/50' 
+                              : 'hover:bg-gray-800'
                           }`}
                           onClick={() => {
                             if (previewProps.channel) {
