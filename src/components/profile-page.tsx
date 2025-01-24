@@ -360,15 +360,6 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                 {/* Following/Followers */}
                 <div className="flex gap-4 text-sm">
                   <button
-                    onClick={() => setListType('following')}
-                    className="hover:underline flex items-center gap-1"
-                  >
-                    <span className="font-bold text-cyan-100">
-                      {userData?.following || 0}
-                    </span>
-                    <span className="text-cyan-500">Following</span>
-                  </button>
-                  <button
                     onClick={() => setListType('followers')}
                     className="hover:underline flex items-center gap-1"
                   >
@@ -376,6 +367,15 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                       {userData?.followers || 0}
                     </span>
                     <span className="text-cyan-500">Followers</span>
+                  </button>
+                  <button
+                    onClick={() => setListType('following')}
+                    className="hover:underline flex items-center gap-1"
+                  >
+                    <span className="font-bold text-cyan-100">
+                      {userData?.following || 0}
+                    </span>
+                    <span className="text-cyan-500">Following</span>
                   </button>
                 </div>
 
