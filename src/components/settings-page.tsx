@@ -111,6 +111,9 @@ export function SettingsPageComponent() {
         return;
       }
 
+      // Show optimistic toast
+      const toastId = toast.loading('Updating profile picture...');
+
       // Optimize image
       const optimizedImage = await optimizeImage(file);
       
@@ -124,12 +127,23 @@ export function SettingsPageComponent() {
       // Update local state
       setAvatar(result);
 
-      // Wait for queries to be invalidated and refetched (handled by mutation)
-      await queryClient.refetchQueries({ queryKey: ['user'] });
-
-      // Get fresh user data after mutation and refetch
+      // Get fresh user data
       const userResponse = await fetch('/api/user');
       const userData = await userResponse.json();
+
+      // Update session with complete user data
+      await update({
+        ...session,
+        user: {
+          ...session?.user,
+          avatar: result,
+          username: userData.username, // Include username in session update
+          email: userData.email // Include email in session update
+        }
+      });
+
+      // Force session refresh
+      await fetch('/api/auth/session');
 
       // Update Stream chat with fresh data
       if (session?.user?.id) {
@@ -139,12 +153,16 @@ export function SettingsPageComponent() {
           body: JSON.stringify({
             targetUserId: session.user.id,
             name: userData.username,
-            avatar: userData.avatar // Use fresh avatar URL
+            avatar: result
           }),
         });
       }
 
-      toast.success('Profile picture updated successfully');
+      // Update toast
+      toast.success('Profile picture updated successfully', {
+        id: toastId
+      });
+
     } catch (error) {
       console.error('Error updating avatar:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to update avatar');

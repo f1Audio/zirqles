@@ -168,31 +168,36 @@ export function useUpdateAvatar() {
         URL.revokeObjectURL(context.optimisticUrl)
       }
 
-      // Update session
+      // Fetch fresh user data
+      const userResponse = await fetch('/api/user')
+      const userData = await userResponse.json()
+
+      // Update session with complete user data
       await update({
         ...session,
         user: {
           ...session?.user,
-          avatar: newAvatar
+          avatar: newAvatar,
+          username: userData.username,
+          email: userData.email
         }
       })
+
+      // Force session refresh
+      await fetch('/api/auth/session')
 
       // Invalidate all relevant queries
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['user'] }),
-        queryClient.invalidateQueries({ queryKey: ['user', session?.user?.username] }),
+        queryClient.invalidateQueries({ queryKey: ['user', userData.username] }),
         queryClient.invalidateQueries({ queryKey: ['posts'] }),
         queryClient.invalidateQueries({ queryKey: ['userPosts'] }),
-        // Add specific invalidation for the navbar query
-        session?.user?.username && queryClient.invalidateQueries({ 
-          queryKey: ['user', session.user.username] 
-        })
       ])
 
       // Force immediate refetch of critical queries
       await Promise.all([
         queryClient.refetchQueries({ 
-          queryKey: ['user', session?.user?.username],
+          queryKey: ['user', userData.username],
           exact: true
         }),
         queryClient.refetchQueries({
