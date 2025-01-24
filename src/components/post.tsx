@@ -89,6 +89,7 @@ const MediaDisplay = ({ media }: { media: Array<{ type: string; url: string }> }
                 className="absolute w-full h-full object-cover"
                 controls
                 preload="metadata"
+                crossOrigin="anonymous"
                 onLoadedMetadata={(e) => {
                   const video = e.target as HTMLVideoElement;
                   // Force pause and seek to first frame
