@@ -2,7 +2,16 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 
+// Add support for both GET and POST methods
 export async function GET(request: Request) {
+  return handleSession(request)
+}
+
+export async function POST(request: Request) {
+  return handleSession(request)
+}
+
+async function handleSession(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     

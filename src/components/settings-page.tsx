@@ -252,12 +252,6 @@ export function SettingsPageComponent() {
     try {
       setIsProfileUpdating(true)
       
-      const oldUsername = session?.user?.username
-      
-      if (!oldUsername) {
-        throw new Error('No username found in session')
-      }
-
       const response = await fetch('/api/user', {
         method: 'PATCH',
         headers: {
@@ -280,7 +274,7 @@ export function SettingsPageComponent() {
 
       const updatedUser = await response.json()
 
-      // Force session update with fresh data
+      // Update session with fresh data
       await update({
         ...session,
         user: {
@@ -289,9 +283,12 @@ export function SettingsPageComponent() {
           email: updatedUser.email,
           avatar: updatedUser.avatar
         }
-      });
+      })
 
-      // Update Stream chat user data with updatedUser data
+      // Force session refresh
+      await fetch('/api/auth/session')
+      
+      // Update Stream chat user data
       if (session?.user?.id) {
         await fetch('/api/stream/user', {
           method: 'POST',
@@ -301,16 +298,14 @@ export function SettingsPageComponent() {
             name: updatedUser.username,
             avatar: updatedUser.avatar
           }),
-        });
+        })
       }
 
-      // Invalidate all relevant queries
+      // Invalidate queries
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['user'] }),
         queryClient.invalidateQueries({ queryKey: ['user', updatedUser.username] }),
-        queryClient.invalidateQueries({ queryKey: ['posts'] }),
-        oldUsername && queryClient.invalidateQueries({ queryKey: ['user', oldUsername] }),
-        queryClient.invalidateQueries({ queryKey: ['userPosts'] })
+        queryClient.invalidateQueries({ queryKey: ['posts'] })
       ])
 
       toast.success('Profile updated successfully')

@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect } from 'react'
-import { useSession, signOut } from 'next-auth/react'
+import { useSession, signOut, getSession } from 'next-auth/react'
 import { useQueryClient } from '@tanstack/react-query'
 
 interface User {
@@ -25,7 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const { data: session, status } = useSession()
+  const { data: session, status, update: updateSession } = useSession()
   const queryClient = useQueryClient()
 
   useEffect(() => {
@@ -63,20 +63,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const updatedUser = await response.json()
       setUser(updatedUser)
       
-      // Force session reload
-      document.dispatchEvent(new Event("visibilitychange"))
+      // Update session with new data
+      await updateSession({
+        ...session,
+        user: {
+          ...session?.user,
+          ...updatedUser
+        }
+      })
+
+      // Force session revalidation
+      await revalidateSession()
       
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['user'] })
       if (updatedUser.username) {
         queryClient.invalidateQueries({ queryKey: ['user', updatedUser.username] })
-      }
-      
-      // Fetch fresh user data
-      const refreshResponse = await fetch('/api/user')
-      if (refreshResponse.ok) {
-        const refreshedUser = await refreshResponse.json()
-        setUser(refreshedUser)
       }
     } catch (error) {
       throw error
@@ -118,4 +120,15 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider')
   }
   return context
+}
+
+export async function revalidateSession() {
+  // Force a session refresh using POST
+  await fetch('/api/auth/session', { method: 'POST' })
+  
+  // Wait for session to propagate
+  await new Promise(resolve => setTimeout(resolve, 500))
+  
+  // Force a client-side update
+  document.dispatchEvent(new Event("visibilitychange"))
 } 
