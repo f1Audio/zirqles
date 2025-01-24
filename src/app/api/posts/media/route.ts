@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       uploadUrl, 
       key, 
       publicUrl,
-      type: mediaType 
+      type: mediaType
     });
   } catch (error) {
     console.error('Error handling media upload:', error);

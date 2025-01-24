@@ -89,6 +89,42 @@ const MediaDisplay = ({ media }: { media: Array<{ type: string; url: string }> }
                 className="absolute w-full h-full object-cover"
                 controls
                 preload="metadata"
+                onLoadedMetadata={(e) => {
+                  const video = e.target as HTMLVideoElement;
+                  // Force pause and seek to first frame
+                  video.pause();
+                  video.currentTime = 0.001; // Seek to first frame
+                  
+                  // Once we've seeked to the first frame
+                  video.addEventListener('seeked', () => {
+                    try {
+                      const canvas = document.createElement('canvas');
+                      canvas.width = video.videoWidth;
+                      canvas.height = video.videoHeight;
+                      const ctx = canvas.getContext('2d');
+                      if (ctx) {
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        video.poster = canvas.toDataURL('image/jpeg');
+                      }
+                    } catch (error) {
+                      console.error('Error generating video thumbnail:', error);
+                    }
+                  }, { once: true }); // Only run this once
+                }}
+                // Prevent any kind of autoplay
+                autoPlay={false}
+                muted={true}
+                playsInline={true}
+                // Add load handler to ensure video starts paused
+                onLoadStart={(e) => {
+                  const video = e.target as HTMLVideoElement;
+                  video.pause();
+                }}
+                // Add canplay handler as additional safety
+                onCanPlay={(e) => {
+                  const video = e.target as HTMLVideoElement;
+                  video.pause();
+                }}
               />
             </div>
           ) : null}
