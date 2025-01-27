@@ -81,7 +81,8 @@ export async function POST(
       stats: {
         target: {
           followers: updatedTarget?.followers || 0,
-          following: updatedTarget?.following || 0
+          following: updatedTarget?.following || 0,
+          isFollowing: !isFollowing
         },
         current: {
           followers: updatedCurrent?.followers || 0,

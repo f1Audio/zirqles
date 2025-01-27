@@ -327,8 +327,9 @@ export function useUserMutations(session: Session | null) {
       return response.json()
     },
     onMutate: async (username) => {
-      // Cancel only specific queries
+      // Cancel relevant queries
       await Promise.all([
+        queryClient.cancelQueries({ queryKey: ['profile', username] }),
         queryClient.cancelQueries({ queryKey: ['user', username] }),
         queryClient.cancelQueries({ queryKey: ['users', username, 'followers'] }),
         queryClient.cancelQueries({ queryKey: ['users', username, 'following'] })
@@ -336,44 +337,47 @@ export function useUserMutations(session: Session | null) {
 
       // Get snapshot of previous data
       const previousData = {
+        profile: queryClient.getQueryData(['profile', username]),
         user: queryClient.getQueryData(['user', username]),
         userList: queryClient.getQueryData(['users', username, 'followers']) || 
                  queryClient.getQueryData(['users', username, 'following'])
       }
 
-      // Optimistically update both caches
-      if (previousData.user) {
-        queryClient.setQueryData(['user', username], (old: any) => ({
+      // Optimistically update all relevant caches
+      const updateCache = (old: any) => {
+        if (!old) return old
+        return {
           ...old,
           isFollowing: !old.isFollowing,
           followers: old.followers + (!old.isFollowing ? 1 : -1)
-        }))
+        }
       }
 
-      // Update user list if it exists
+      queryClient.setQueryData(['profile', username], updateCache)
+      queryClient.setQueryData(['user', username], updateCache)
+
+      // Update user lists if they exist
       if (previousData.userList) {
-        queryClient.setQueryData(['users', username, 'followers'], (old: any) => ({
+        const updateUserInList = (old: any) => ({
           ...old,
           users: old.users?.map((user: any) => 
-            user.username === username || user.name === username
+            user.username === username
               ? { ...user, isFollowing: !user.isFollowing }
               : user
           )
-        }))
-        queryClient.setQueryData(['users', username, 'following'], (old: any) => ({
-          ...old,
-          users: old.users?.map((user: any) => 
-            user.username === username || user.name === username
-              ? { ...user, isFollowing: !user.isFollowing }
-              : user
-          )
-        }))
+        })
+
+        queryClient.setQueryData(['users', username, 'followers'], updateUserInList)
+        queryClient.setQueryData(['users', username, 'following'], updateUserInList)
       }
 
       return previousData
     },
     onError: (err, username, context: any) => {
-      // Revert to previous state on error
+      // Revert all optimistic updates
+      if (context?.profile) {
+        queryClient.setQueryData(['profile', username], context.profile)
+      }
       if (context?.user) {
         queryClient.setQueryData(['user', username], context.user)
       }
@@ -383,16 +387,12 @@ export function useUserMutations(session: Session | null) {
       }
     },
     onSuccess: (data, username) => {
-      // Update both caches with server data
-      queryClient.setQueryData(['user', username], (old: any) => ({
-        ...old,
-        isFollowing: data.isFollowing,
-        followers: data.stats?.target?.followers || old.followers
-      }))
-
-      // Invalidate relevant queries
+      // Invalidate and refetch all relevant queries
+      queryClient.invalidateQueries({ queryKey: ['profile', username] })
       queryClient.invalidateQueries({ queryKey: ['user', username] })
-      queryClient.invalidateQueries({ queryKey: ['users', username] })
+      queryClient.invalidateQueries({ queryKey: ['users', username, 'followers'] })
+      queryClient.invalidateQueries({ queryKey: ['users', username, 'following'] })
+      
       if (session?.user?.username) {
         queryClient.invalidateQueries({ queryKey: ['user', session.user.username] })
       }
