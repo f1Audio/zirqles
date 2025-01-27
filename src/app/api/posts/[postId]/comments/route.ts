@@ -16,26 +16,38 @@ interface PopulatedComment {
     avatar?: string
   }
   type: 'post' | 'comment'
-  depth: number
-  parentId?: mongoose.Types.ObjectId
-  rootId?: mongoose.Types.ObjectId
+  likes: mongoose.Types.ObjectId[]
+  reposts: mongoose.Types.ObjectId[]
+  comments: mongoose.Types.ObjectId[]
   createdAt: Date
   updatedAt: Date
-  media?: string[]
-}
-
-interface PopulatedPost extends Omit<IPost, 'author'> {
-  _id: mongoose.Types.ObjectId
-  author: {
-    _id: mongoose.Types.ObjectId
-    username: string
-    avatar?: string
-  }
   media: Array<{
     type: 'image' | 'video'
     url: string
     key: string
   }>
+}
+
+interface PopulatedPost {
+  _id: mongoose.Types.ObjectId
+  content: string
+  author: {
+    _id: mongoose.Types.ObjectId
+    username: string
+    avatar?: string
+  }
+  likes: mongoose.Types.ObjectId[]
+  reposts: mongoose.Types.ObjectId[]
+  comments: mongoose.Types.ObjectId[]
+  type: 'post' | 'comment'
+  media: Array<{
+    type: 'image' | 'video'
+    url: string
+    key: string
+  }>
+  createdAt: Date
+  updatedAt: Date
+  __v?: number
 }
 
 export async function POST(
@@ -52,51 +64,34 @@ export async function POST(
     
     const { content } = await req.json()
     
-    // Find the parent post/comment and populate necessary fields
+    // Find the parent post
     const parentPost = await Post.findById(params.postId)
       .populate('author', '_id username avatar')
-      .populate('rootId')
-      .select('content author likes reposts comments type depth media rootId parentId')
+      .select('content author likes comments type media')
       .lean() as PopulatedPost
     
     if (!parentPost) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 })
     }
 
-    // Calculate depth based on parent post
-    const depth = parentPost.type === 'comment' ? parentPost.depth + 1 : 1
-    
-    // Check max depth
-    if (depth > 2) {
-      return NextResponse.json({ error: 'Maximum comment depth exceeded' }, { status: 400 })
+    // Only allow comments on posts, not on other comments
+    if (parentPost.type === 'comment') {
+      return NextResponse.json({ error: 'Cannot comment on comments' }, { status: 400 })
     }
-
-    // For comments on comments, we need to track both the immediate parent and the root post
-    const rootId = parentPost.type === 'comment' ? parentPost.rootId || parentPost._id : parentPost._id
 
     // Create the new comment
     const comment = await Post.create({
       content,
       author: session.user.id,
       type: 'comment',
-      depth,
-      parentId: parentPost._id,
-      rootId,
-      comments: [],
       media: []
     })
 
     // Update the parent's comments array
     const updatedParent = await Post.findByIdAndUpdate(
       parentPost._id,
-      { 
-        $push: { comments: comment._id },
-        $set: { media: parentPost.media }
-      },
-      { 
-        new: true,
-        runValidators: true
-      }
+      { $push: { comments: comment._id } },
+      { new: true }
     ).populate('author', 'username avatar')
 
     if (!updatedParent) {
@@ -109,20 +104,16 @@ export async function POST(
         recipient: parentPost.author._id,
         sender: session.user.id,
         type: 'comment',
-        post: rootId, // Use rootId for the notification to link to the main post
+        post: parentPost._id,
         read: false,
         createdAt: new Date()
       })
     }
 
-    // Return the formatted comment with author info
+    // Return the formatted comment
     const populatedComment = await Post.findById(comment._id)
       .populate('author', 'username avatar')
-      .lean() as PopulatedComment
-
-    if (!populatedComment) {
-      return NextResponse.json({ error: 'Comment not found after creation' }, { status: 404 })
-    }
+      .lean() as unknown as PopulatedComment
 
     return NextResponse.json({
       ...populatedComment,
@@ -132,21 +123,10 @@ export async function POST(
         username: populatedComment.author.username,
         avatar: populatedComment.author.avatar
       },
-      post: {
-        _id: parentPost._id.toString(),
-        author: {
-          _id: parentPost.author._id.toString(),
-          username: parentPost.author.username,
-          avatar: parentPost.author.avatar
-        },
-        media: parentPost.media || []
-      },
-      type: 'comment',
-      depth,
-      parentId: parentPost._id.toString(),
-      rootId: rootId.toString(),
+      likes: [],
+      reposts: [],
       comments: [],
-      media: []
+      type: 'comment'
     })
   } catch (error) {
     console.error('Error creating comment:', error)
@@ -176,38 +156,17 @@ export async function GET(
           {
             path: 'reposts',
             select: '_id'
-          },
-          {
-            path: 'comments',
-            populate: [
-              {
-                path: 'author',
-                select: 'username avatar'
-              },
-              {
-                path: 'likes',
-                select: '_id'
-              },
-              {
-                path: 'reposts',
-                select: '_id'
-              },
-              {
-                path: 'comments',
-                select: '_id'
-              }
-            ]
           }
         ]
       })
-      .lean() as IPost
+      .lean() as unknown as PopulatedPost
 
     if (!post) {
       return NextResponse.json({ error: 'Post not found' }, { status: 404 })
     }
 
-    // Recursive function to format comments
-    const formatComment = (comment: any): any => ({
+    // Format comments with proper fields and string IDs
+    const comments = (post.comments || []).map((comment: any) => ({
       _id: comment._id.toString(),
       content: comment.content,
       author: {
@@ -217,20 +176,12 @@ export async function GET(
       },
       likes: comment.likes.map((like: any) => like._id.toString()),
       reposts: comment.reposts.map((repost: any) => repost._id.toString()),
-      comments: Array.isArray(comment.comments) 
-        ? comment.comments.map((c: any) => formatComment(c))
-        : [],
-      type: comment.type || 'comment',
-      depth: comment.depth || 1,
-      parentId: comment.parentId?.toString(),
-      rootId: comment.rootId?.toString(),
+      comments: [],
+      type: 'comment',
       createdAt: comment.createdAt,
       updatedAt: comment.updatedAt,
       media: comment.media || []
-    })
-
-    // Format comments with proper fields and string IDs
-    const comments = (post.comments || []).map(formatComment)
+    }))
 
     return NextResponse.json(comments)
   } catch (error) {

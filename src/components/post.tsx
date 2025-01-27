@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { InteractionButtons } from './interaction-buttons'
 import Link from 'next/link'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useMutation } from '@tanstack/react-query'
 import { UserData } from '@/queries/user'
 import Image from 'next/image'
-import { MoreVertical, Trash2 } from 'lucide-react'
+import { MoreVertical, Trash2, Heart, MoreHorizontal } from 'lucide-react'
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -30,29 +30,45 @@ interface Comment {
   author: Author
   likes: string[]
   reposts: string[]
-  comments: Comment[]
+  comments: string[]
   type: 'comment'
-  depth: number
   createdAt: string
+  media?: {
+    type: 'image' | 'video'
+    url: string
+    key: string
+  }[]
 }
 
+// First, let's define a proper discriminated union type for posts
+interface BasePost {
+  _id: string
+  content: string
+  author: Author
+  likes: string[]
+  reposts: string[]
+  comments: string[]
+  createdAt: string
+  media?: {
+    type: 'image' | 'video'
+    url: string
+    key: string
+  }[]
+}
+
+interface MainPost extends BasePost {
+  type: 'post'
+}
+
+interface CommentPost extends BasePost {
+  type: 'comment'
+}
+
+type Post = MainPost | CommentPost
+
+// Update PostProps to use the new Post type
 interface PostProps {
-  post: {
-    _id: string
-    content: string
-    author: Author
-    likes: string[]
-    reposts: string[]
-    comments: Comment[]
-    type: 'post' | 'comment'
-    depth: number
-    createdAt: string
-    media?: {
-      type: 'image' | 'video'
-      url: string
-      key: string
-    }[]
-  }
+  post: Post
   isExpanded?: boolean
   onExpand?: (postId: string | null) => void
   onInteraction?: (type: 'like' | 'repost' | 'comment', postId: string, content?: string) => void
@@ -62,6 +78,11 @@ interface PostProps {
   comments?: Comment[]
   className?: string
   onDelete?: (postId: string) => void
+}
+
+// Add this helper function near the top of the file
+function isCommentPost(post: Post): post is CommentPost {
+  return post.type === 'comment'
 }
 
 const MediaDisplay = ({ media }: { media: Array<{ type: string; url: string }> }) => {
@@ -135,6 +156,37 @@ const MediaDisplay = ({ media }: { media: Array<{ type: string; url: string }> }
   );
 };
 
+// Update CommentLikeButton to receive optimisticLiked state
+function CommentLikeButton({ 
+  post, 
+  onInteraction,
+  optimisticLiked
+}: { 
+  post: Post
+  onInteraction: (type: 'like' | 'repost' | 'comment', postId: string) => void 
+  optimisticLiked: boolean
+}) {
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onInteraction('like', post._id)
+  }
+
+  return (
+    <button
+      onClick={handleLike}
+      className={cn(
+        "transition-colors duration-200",
+        optimisticLiked ? 'text-pink-400 hover:text-pink-300' : 'text-gray-400 hover:text-pink-400/90'
+      )}
+    >
+      <Heart className={cn(
+        "h-4 w-4",
+        optimisticLiked && "fill-pink-400"
+      )} />
+    </button>
+  )
+}
+
 export function Post({
   post,
   isExpanded,
@@ -172,17 +224,76 @@ export function Post({
       return
     }
     
-    if (type === 'comment') {
-      // For root post, use the parent's expand handler
-      if (post.type === 'post') {
+    if (type === 'like') {
+      // Update main posts query
+      queryClient.setQueryData(['posts'], (oldData: any) => {
+        const posts = oldData || []
+        return posts.map((p: any) => {
+          // Update comments within posts
+          if (p.comments) {
+            return {
+              ...p,
+              comments: p.comments.map((c: any) => {
+                if (c._id === post._id) {
+                  const userId = session?.user?.id || ''
+                  const hasLiked = c.likes.includes(userId)
+                  return {
+                    ...c,
+                    likes: hasLiked 
+                      ? c.likes.filter((id: string) => id !== userId)
+                      : [...c.likes, userId]
+                  }
+                }
+                return c
+              })
+            }
+          }
+          // Update main post if it matches
+          if (p._id === post._id) {
+            const userId = session?.user?.id || ''
+            const hasLiked = p.likes.includes(userId)
+            return {
+              ...p,
+              likes: hasLiked 
+                ? p.likes.filter((id: string) => id !== userId)
+                : [...p.likes, userId]
+            }
+          }
+          return p
+        })
+      })
+
+      // Also update individual post comments query if it exists
+      const parentPostId = queryClient.getQueryData(['currentPostId'])
+      if (parentPostId) {
+        queryClient.setQueryData(['comments', parentPostId], (oldComments: any) => {
+          if (!oldComments) return oldComments
+          return oldComments.map((c: any) => {
+            if (c._id === post._id) {
+              const userId = session?.user?.id || ''
+              const hasLiked = c.likes.includes(userId)
+              return {
+                ...c,
+                likes: hasLiked 
+                  ? c.likes.filter((id: string) => id !== userId)
+                  : [...c.likes, userId]
+              }
+            }
+            return c
+          })
+        })
+      }
+    } else if (type === 'comment') {
+      // Handle comment expansion
+      if (!isCommentPost(post)) {
         onExpand?.(isExpanded ? null : post._id)
       } else {
-        // For comments, use local state
         setLocalIsExpanded(!localIsExpanded)
       }
     }
+    
     onInteraction?.(type, post._id)
-  }, [post._id, post.type, isExpanded, localIsExpanded, onExpand, onInteraction])
+  }, [post._id, isExpanded, localIsExpanded, onExpand, onInteraction, session?.user?.id, queryClient])
 
   const handleLocalCommentSubmit = useCallback(() => {
     if (localCommentContent.trim()) {
@@ -200,48 +311,148 @@ export function Post({
   }, [post._id, onDelete])
 
   const handleCommentClick = (username?: string) => {
-    // For root post, use the parent's expand handler
-    if (post.type === 'post') {
+    if (!isCommentPost(post)) {
       onExpand?.(isExpanded ? null : post._id)
-      // Don't prefill username for main posts
     } else {
-      // For comments, use local state and prefill username
       setLocalIsExpanded(!localIsExpanded)
       
-      // Only prefill username when replying to comments
       if (username) {
-        if (post.type === 'comment') {
-          setLocalCommentContent(`@${username} `)
-        } else {
-          setLocalCommentContent(`@${username} `)
-        }
+        setLocalCommentContent(`@${username} `)
       }
     }
   }
 
   // Determine if this post should show the comment form and comments
-  const shouldShowCommentForm = post.type === 'post' ? isExpanded : localIsExpanded
-  const shouldShowComments = post.type === 'post' ? showComments : localIsExpanded
+  const shouldShowCommentForm = !isCommentPost(post) ? isExpanded : localIsExpanded
+  const shouldShowComments = !isCommentPost(post) ? showComments : localIsExpanded
   
   // Use the appropriate comment content based on post type
-  const currentCommentContent = post.type === 'post' ? commentContent : localCommentContent
-  const handleCommentChange = post.type === 'post' 
+  const currentCommentContent = !isCommentPost(post) ? commentContent : localCommentContent
+  const handleCommentChange = !isCommentPost(post) 
     ? onCommentChange 
     : setLocalCommentContent
 
+  // For comments, render a simpler view
+  if (isCommentPost(post)) {
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const userId = session?.user?.id || ''
+    const isLiked = post.likes.includes(userId)
+    const [optimisticLiked, setOptimisticLiked] = useState(isLiked)
+
+    useEffect(() => {
+      setOptimisticLiked(isLiked)
+    }, [isLiked])
+
+    const handleCommentLike = useCallback((type: 'like' | 'repost' | 'comment', postId: string) => {
+      if (type === 'like') {
+        setOptimisticLiked(!optimisticLiked)
+      }
+      handleInteraction(type, postId)
+    }, [optimisticLiked, handleInteraction])
+
+    return (
+      <div 
+        className="flex items-start space-x-3 py-2 px-1"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => {
+          if (!isDropdownOpen) {
+            setIsHovered(false)
+          }
+        }}
+      >
+        <Link href={`/user/${post.author.username}`} className="flex-shrink-0">
+          <Avatar className="h-8 w-8 ring-2 ring-cyan-500/30 ring-offset-1 ring-offset-gray-900">
+            <AvatarImage src={post.author.avatar} alt={post.author.username} />
+            <AvatarFallback className="bg-gray-900 text-cyan-300">
+              {post.author.username[0]?.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </Link>
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-0.5">
+                <Link href={`/user/${post.author.username}`}>
+                  <span className="font-semibold text-sm text-cyan-300 hover:text-cyan-200">
+                    {post.author.username}
+                  </span>
+                </Link>
+                <span className="text-xs text-cyan-500">
+                  @{post.author.username.toLowerCase()}
+                </span>
+              </div>
+              
+              <p className="text-sm text-cyan-100/90 break-words whitespace-pre-wrap">
+                {post.content}
+              </p>
+
+              {post.media && post.media.length > 0 && (
+                <div className="mt-2">
+                  <MediaDisplay media={post.media} />
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 mt-1">
+                {(optimisticLiked ? 
+                  post.likes.includes(userId) ? post.likes.length : post.likes.length + 1 
+                  : post.likes.includes(userId) ? post.likes.length - 1 : post.likes.length) > 0 && (
+                  <p className="text-xs text-cyan-400">
+                    {optimisticLiked ? 
+                      post.likes.includes(userId) ? post.likes.length : post.likes.length + 1 
+                      : post.likes.includes(userId) ? post.likes.length - 1 : post.likes.length
+                    } {(optimisticLiked ? 
+                      post.likes.includes(userId) ? post.likes.length : post.likes.length + 1 
+                      : post.likes.includes(userId) ? post.likes.length - 1 : post.likes.length) === 1 ? 'like' : 'likes'}
+                  </p>
+                )}
+                
+                {(session?.user?.id === post.author._id && (isHovered || isDropdownOpen)) && (
+                  <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                    <DropdownMenuTrigger className="text-gray-400 hover:text-gray-300 transition-colors duration-200">
+                      <MoreHorizontal className="h-3 w-3" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent 
+                      align="end" 
+                      className="bg-gray-800/95 border border-cyan-500/20 backdrop-blur-sm rounded-xl shadow-lg"
+                    >
+                      <DropdownMenuItem
+                        className="flex items-center px-3 py-2 text-sm focus:text-red-400 text-red-400 cursor-pointer transition-all duration-200"
+                        onClick={handleDelete}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>Delete Comment</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            </div>
+
+            <div className="ml-4">
+              <CommentLikeButton 
+                post={post} 
+                onInteraction={handleCommentLike}
+                optimisticLiked={optimisticLiked}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Regular post render remains the same
   return (
-    <div 
-      className={`border bg-cyan-900/20 border-cyan-500/30 shadow-lg shadow-cyan-500/10 
-        transition-all duration-300 ease-in-out rounded-xl
-        ${post.type === 'post' 
-          ? 'backdrop-blur-sm bg-cyan-900/20 mb-4 p-3 sm:p-4' 
-          : 'mb-2 p-3'
-        } ${className}`}
+    <div className={`border bg-cyan-900/20 border-cyan-500/30 shadow-lg shadow-cyan-500/10 
+      transition-all duration-300 ease-in-out rounded-xl backdrop-blur-sm mb-4 p-3 sm:p-4 ${className}`}
     >
       <div className="flex items-start space-x-4">
         <Link href={`/user/${post.author.username}`}>
-          <Avatar className={`flex-shrink-0 ring-2 ring-cyan-500 ring-offset-2 ring-offset-gray-900 cursor-pointer 
-            ${post.type === 'comment' ? 'w-8 h-8' : 'w-10 h-10'}`}>
+          <Avatar className={cn(
+            "flex-shrink-0 ring-2 ring-cyan-500 ring-offset-2 ring-offset-gray-900 cursor-pointer",
+            isCommentPost(post) ? 'w-8 h-8' : 'w-10 h-10'
+          )}>
             <AvatarImage 
               src={post.author.avatar} 
               alt={post.author.username} 
@@ -259,20 +470,27 @@ export function Post({
                 href={`/user/${post.author.username}`}
                 onMouseEnter={prefetchUserData}
               >
-                <span className={`font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer ${
-                  post.type === 'comment' ? 'text-sm' : ''
-                }`}>
+                <span className={cn(
+                  "font-semibold text-cyan-300 hover:text-cyan-200 cursor-pointer",
+                  isCommentPost(post) && "text-sm"
+                )}>
                   {post.author.username}
                 </span>
               </Link>
-              <span className={`text-cyan-500 ${post.type === 'comment' ? 'text-xs' : 'text-sm'}`}>
+              <span className={cn(
+                "text-cyan-500",
+                isCommentPost(post) ? 'text-xs' : 'text-sm'
+              )}>
                 @{post.author.username.toLowerCase()}
               </span>
             </div>
             
             {session?.user?.id === post.author._id && (
               <DropdownMenu>
-                <DropdownMenuTrigger className={`absolute ${post.type === 'comment' ? 'top-2' : 'top-4'} right-4`}>
+                <DropdownMenuTrigger className={cn(
+                  "absolute right-4",
+                  isCommentPost(post) ? 'top-2' : 'top-4'
+                )}>
                   <MoreVertical className="h-5 w-5 text-gray-400 hover:text-gray-300" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent 
@@ -291,9 +509,10 @@ export function Post({
             )}
           </div>
           
-          <p className={`mt-1 break-words whitespace-pre-wrap ${
-            post.type === 'comment' ? 'text-sm text-cyan-100/90' : 'text-cyan-100'
-          }`}>
+          <p className={cn(
+            "mt-1 break-words whitespace-pre-wrap",
+            isCommentPost(post) ? 'text-sm text-cyan-100/90' : 'text-cyan-100'
+          )}>
             {post.content}
           </p>
 
@@ -302,78 +521,47 @@ export function Post({
           )}
 
           <InteractionButtons
-            post={{
-              _id: post._id,
-              likes: post.likes,
-              reposts: post.reposts,
-              comments: post.comments.map(c => c._id),
-              author: {
-                _id: post.author._id
-              },
-              type: post.type,
-              depth: post.depth
-            }}
+            post={post}
             onInteraction={handleInteraction}
             size="sm"
             authorUsername={post.author.username}
-            onCommentClick={handleCommentClick}
           />
 
-          {/* Comments */}
-          {shouldShowComments && comments.length > 0 && (
-            <div className={`mt-2 space-y-2 ${post.type === 'post' ? 'border-t border-cyan-500/30 pt-4' : ''}`}>
-              {comments.map((comment) => {
-                // Handle both string IDs and comment objects
-                if (typeof comment === 'string') {
-                  console.warn('Comment received as string ID, skipping render:', comment)
-                  return null
-                }
-                
-                // Skip rendering if comment doesn't have a valid ID
-                if (!comment?._id) {
-                  console.warn('Comment missing ID:', comment)
-                  return null
-                }
-                
-                return (
-                  <Post
-                    key={`comment-${post._id}-${comment._id}-${Date.parse(comment.createdAt) || Date.now()}`}
-                    post={comment}
-                    isExpanded={false}
-                    onExpand={onExpand}
-                    onInteraction={onInteraction}
-                    commentContent=""
-                    onCommentChange={onCommentChange}
-                    showComments={false}
-                    comments={Array.isArray(comment.comments) ? comment.comments.filter(c => typeof c !== 'string') : []}
-                    onDelete={onDelete}
-                    className={`${comment.depth > 0 ? 'ml-8' : ''}`}
-                  />
-                )
-              })}
-            </div>
-          )}
+          {/* Update comments section styling */}
+          {!isCommentPost(post) && (
+            <>
+              {shouldShowComments && comments.length > 0 && (
+                <div className="mt-3 space-y-0.5 border-t border-cyan-500/20 pt-2">
+                  {comments.map((comment) => (
+                    <Post
+                      key={comment._id}
+                      post={comment}
+                      onInteraction={onInteraction}
+                      onDelete={onDelete}
+                    />
+                  ))}
+                </div>
+              )}
 
-          {/* Comment section - Moved below comments */}
-          {shouldShowCommentForm && (
-            <div className="mt-4 space-y-4 border-t border-cyan-500/20 pt-4">
-              <textarea
-                value={currentCommentContent}
-                onChange={(e) => handleCommentChange?.(e.target.value)}
-                placeholder="Write your comment..."
-                className="w-full bg-cyan-900/30 border border-cyan-500/30 rounded-xl p-3 text-sm text-cyan-100 placeholder-cyan-500/50 focus:outline-none focus:border-cyan-400"
-              />
-              <Button
-                onClick={post.type === 'post' 
-                  ? () => onInteraction?.('comment', post._id, currentCommentContent)
-                  : handleLocalCommentSubmit
-                }
-                disabled={!currentCommentContent?.trim()}
-                className="bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white font-medium rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-md hover:shadow-cyan-500/20"
-              >
-                Comment
-              </Button>
-            </div>
+              {shouldShowCommentForm && (
+                <div className="mt-3 border-t border-cyan-500/20 pt-3">
+                  <textarea
+                    value={currentCommentContent}
+                    onChange={(e) => handleCommentChange?.(e.target.value)}
+                    placeholder="Add a comment..."
+                    className="w-full bg-transparent text-sm text-cyan-100 placeholder-cyan-300/50 focus:outline-none resize-none"
+                    rows={1}
+                  />
+                  <Button
+                    onClick={() => onInteraction?.('comment', post._id, currentCommentContent)}
+                    disabled={!currentCommentContent?.trim()}
+                    className="mt-2 bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white text-sm font-medium rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-md hover:shadow-cyan-500/20"
+                  >
+                    Post
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

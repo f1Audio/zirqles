@@ -1,8 +1,27 @@
 import { Types } from 'mongoose'
 
+export type PostType = 'post' | 'comment'
+
 export interface Author {
   _id: string
   username: string
+  avatar?: string
+}
+
+export interface BasePost {
+  _id: string
+  content: string
+  author: Author
+  likes: string[]
+  reposts: string[]
+  comments: string[]
+  type: PostType
+  createdAt: string
+  media?: {
+    type: 'image' | 'video'
+    url: string
+    key: string
+  }[]
 }
 
 export interface Post {

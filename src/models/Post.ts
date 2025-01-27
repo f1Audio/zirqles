@@ -8,10 +8,7 @@ export interface IPost {
   likes: mongoose.Types.ObjectId[]
   reposts: mongoose.Types.ObjectId[]
   comments: mongoose.Types.ObjectId[]
-  parentId?: mongoose.Types.ObjectId  // Reference to parent post/comment
-  rootId?: mongoose.Types.ObjectId    // Reference to the root post
-  type: 'post' | 'comment'           // Discriminator field
-  depth: number                      // Nesting level (0 for posts, increments for comments)
+  type: 'post' | 'comment'
   media: Array<{
     type: 'image' | 'video'
     url: string
@@ -35,10 +32,7 @@ const PostSchema = new mongoose.Schema<IPost>({
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   reposts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
-  parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
-  rootId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
   type: { type: String, enum: ['post', 'comment'], required: true, default: 'post' },
-  depth: { type: Number, required: true, default: 0, max: 2 }  // Max depth of 2 for nested comments
 }, {
   timestamps: true,
   strict: true
@@ -54,22 +48,6 @@ PostSchema.pre('save', function(next) {
     this.media = [];
   }
   next();
-});
-
-// Middleware to set rootId if not provided
-PostSchema.pre('save', function(next) {
-  if (this.type === 'comment' && !this.rootId && this.parentId) {
-    // Find the root post by traversing up the parent chain
-    Post.findById(this.parentId).then(parentPost => {
-      if (parentPost) {
-        this.rootId = parentPost.rootId || parentPost._id;
-        this.depth = (parentPost.depth || 0) + 1;
-      }
-      next();
-    }).catch(next);
-  } else {
-    next();
-  }
 });
 
 export const Post = mongoose.models.Post || mongoose.model<IPost>('Post', PostSchema); 
