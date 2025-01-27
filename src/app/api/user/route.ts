@@ -6,7 +6,6 @@ import { User } from '@/models/User'
 import { Post } from '@/models/Post'
 import { s3Client } from '@/lib/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
-import mongoose from 'mongoose';
 import { StreamChat } from 'stream-chat'
 
 // Initialize Stream client
