@@ -24,7 +24,7 @@ export const userQueryKeys = {
 }
 
 export function useUser() {
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   
   return useQuery({
     queryKey: ['user'],
@@ -36,12 +36,13 @@ export function useUser() {
       const data = await response.json()
       return data
     },
-    enabled: !!session,
+    enabled: status === "authenticated" && !!session?.user?.id,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
     initialData: session?.user ? {
       _id: session.user.id,
       username: session.user.username,
-      avatar: session.user.avatar,
+      avatar: session.user.avatar || session.user.image,
+      email: session.user.email,
       followers: 0,
       following: 0
     } : undefined
@@ -102,109 +103,79 @@ export function useUpdateAvatar() {
       return newAvatar
     },
 
-    onMutate: async ({ file, userId }) => {
-      const optimisticUrl = URL.createObjectURL(file)
+    onSuccess: async (newAvatar, { userId }) => {
+      try {
+        // Get fresh user data first
+        const userResponse = await fetch('/api/user')
+        const userData = await userResponse.json()
 
-      // Store previous states before canceling queries
-      const previousData = {
-        user: queryClient.getQueryData(['user']),
-        userProfile: queryClient.getQueryData(['user', session?.user?.username]),
-        userPosts: queryClient.getQueryData(['user', session?.user?.username, 'posts']),
-        posts: queryClient.getQueryData(['posts']),
-        replies: queryClient.getQueryData(['replies']),
-        session: queryClient.getQueryData(['session'])
-      }
+        // Batch all updates together
+        await Promise.all([
+          // 1. Update session
+          update({
+            ...session,
+            user: {
+              ...session?.user,
+              avatar: newAvatar,
+              username: userData.username,
+              email: userData.email
+            }
+          }),
 
-      // Cancel queries
-      await queryClient.cancelQueries()
+          // 2. Update queries silently (without triggering refreshes)
+          queryClient.setQueryData(['user'], (old: any) => ({
+            ...old,
+            avatar: newAvatar,
+            username: userData.username,
+            email: userData.email
+          })),
 
-      // Update user data
-      queryClient.setQueryData(['user'], (old: any) => ({
-        ...old,
-        avatar: optimisticUrl
-      }))
+          queryClient.setQueryData(['user', userData.username], (old: any) => ({
+            ...old,
+            avatar: newAvatar
+          })),
 
-      queryClient.setQueryData(['user', session?.user?.username], (old: any) => ({
-        ...old,
-        avatar: optimisticUrl
-      }))
+          // 3. Update posts cache silently
+          queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
+            if (!Array.isArray(old)) return old;
+            return old.map((post: any) => {
+              if (post.author?._id === userId) {
+                return {
+                  ...post,
+                  author: {
+                    ...post.author,
+                    avatar: newAvatar
+                  }
+                };
+              }
+              return post;
+            });
+          })
+        ])
 
-      // Update posts with new avatar
-      const updatePostsWithAvatar = (posts: any[] | undefined) => {
-        if (!Array.isArray(posts)) return []
-        return posts.map(post => updatePostAvatar(post, userId, optimisticUrl))
-      }
-
-      // Update all relevant caches
-      queryClient.setQueriesData(
-        { queryKey: ['user', session?.user?.username, 'posts'] },
-        updatePostsWithAvatar
-      )
-      queryClient.setQueriesData({ queryKey: ['posts'] }, updatePostsWithAvatar)
-      queryClient.setQueriesData({ queryKey: ['replies'] }, updatePostsWithAvatar)
-
-      return { previousData, optimisticUrl }
-    },
-
-    onError: (error, variables, context) => {
-      if (context?.previousData) {
-        // Revert all caches atomically
-        const { previousData } = context
-        queryClient.setQueryData(['user'], previousData.user)
-        queryClient.setQueryData(['user', session?.user?.username], previousData.userProfile)
-        queryClient.setQueryData(['user', session?.user?.username, 'posts'], previousData.userPosts)
-        queryClient.setQueryData(['posts'], previousData.posts)
-        queryClient.setQueryData(['replies'], previousData.replies)
-        queryClient.setQueryData(['session'], previousData.session)
-      }
-      
-      if (context?.optimisticUrl) {
-        URL.revokeObjectURL(context.optimisticUrl)
-      }
-    },
-
-    onSuccess: async (newAvatar, { userId }, context) => {
-      if (context?.optimisticUrl) {
-        URL.revokeObjectURL(context.optimisticUrl)
-      }
-
-      // Fetch fresh user data
-      const userResponse = await fetch('/api/user')
-      const userData = await userResponse.json()
-
-      // Update session with complete user data
-      await update({
-        ...session,
-        user: {
-          ...session?.user,
-          avatar: newAvatar,
-          username: userData.username,
-          email: userData.email
+        // 4. Update Stream chat in background (non-blocking)
+        if (session?.user?.id) {
+          fetch('/api/stream/user', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              targetUserId: session.user.id,
+              name: userData.username,
+              avatar: newAvatar
+            }),
+          })
         }
-      })
 
-      // Force session refresh
-      await fetch('/api/auth/session')
+        // 5. Force a single session refresh at the end
+        await fetch('/api/auth/session')
+        console.log('Session refreshed')
+        console.log('Session:', session?.user.username, session?.user.avatar, session?.user.name)
 
-      // Invalidate all relevant queries
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['user'] }),
-        queryClient.invalidateQueries({ queryKey: ['user', userData.username] }),
-        queryClient.invalidateQueries({ queryKey: ['posts'] }),
-        queryClient.invalidateQueries({ queryKey: ['userPosts'] }),
-      ])
-
-      // Force immediate refetch of critical queries
-      await Promise.all([
-        queryClient.refetchQueries({ 
-          queryKey: ['user', userData.username],
-          exact: true
-        }),
-        queryClient.refetchQueries({
-          queryKey: ['user'],
-          exact: true
-        })
-      ])
+      } catch (error) {
+        console.error('Error in onSuccess:', error)
+        // Still throw the error to trigger error handling
+        throw error
+      }
     }
   })
 }

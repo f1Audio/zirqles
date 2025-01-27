@@ -105,45 +105,32 @@ export function SettingsPageComponent() {
     if (!file) return;
 
     try {
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('File size must be less than 5MB');
-        return;
-      }
-
-      // Show optimistic toast
       const toastId = toast.loading('Updating profile picture...');
 
       // Optimize image
       const optimizedImage = await optimizeImage(file);
       
-      // Use the mutation - this will handle session update in its onSuccess callback
+      // Update avatar through mutation
       const result = await updateAvatarMutation.mutateAsync({
         file: optimizedImage as File,
         oldAvatar: avatar,
         userId: session?.user?.id as string
       });
 
-      // Update local state
-      setAvatar(result);
-
-      // Get fresh user data
+      // Get fresh user data first
       const userResponse = await fetch('/api/user');
       const userData = await userResponse.json();
 
-      // Update session with complete user data
+      // Update session with fresh data
       await update({
         ...session,
         user: {
           ...session?.user,
           avatar: result,
-          username: userData.username, // Include username in session update
-          email: userData.email // Include email in session update
+          username: userData.username,
+          email: userData.email
         }
       });
-
-      // Force session refresh
-      await fetch('/api/auth/session');
 
       // Update Stream chat with fresh data
       if (session?.user?.id) {
@@ -152,16 +139,13 @@ export function SettingsPageComponent() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             targetUserId: session.user.id,
-            name: userData.username,
+            name: userData.username,  // Use fresh username from userData
             avatar: result
           }),
         });
       }
 
-      // Update toast
-      toast.success('Profile picture updated successfully', {
-        id: toastId
-      });
+      toast.success('Profile picture updated successfully', { id: toastId });
 
     } catch (error) {
       console.error('Error updating avatar:', error);

@@ -12,6 +12,7 @@ declare module 'next-auth' {
     user: {
       id: string
       username: string
+      name: string
       email: string
       image?: string | null
       avatar?: string | null

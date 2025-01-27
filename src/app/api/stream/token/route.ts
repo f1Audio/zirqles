@@ -3,9 +3,13 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { StreamChat } from 'stream-chat'
 
+if (!process.env.NEXT_PUBLIC_STREAM_KEY || !process.env.STREAM_SECRET) {
+  throw new Error('Stream credentials are not properly configured')
+}
+
 const serverClient = StreamChat.getInstance(
-  process.env.NEXT_PUBLIC_STREAM_KEY!,
-  process.env.STREAM_SECRET!
+  process.env.NEXT_PUBLIC_STREAM_KEY,
+  process.env.STREAM_SECRET
 )
 
 export async function POST(req: Request) {
@@ -16,14 +20,17 @@ export async function POST(req: Request) {
     }
 
     const { userId } = await req.json()
-    
-    // Verify the requesting user matches the token user
-    if (userId !== session.user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
     }
 
-    // Generate user token with 24 hour expiration
-    const token = serverClient.createToken(userId, Math.floor(Date.now() / 1000) + (24 * 60 * 60))
+    // Verify the requesting user matches the token request
+    if (userId !== session.user.id) {
+      return NextResponse.json({ error: 'Invalid user ID' }, { status: 403 })
+    }
+
+    // Generate token
+    const token = serverClient.createToken(userId)
 
     return NextResponse.json({ token })
   } catch (error) {

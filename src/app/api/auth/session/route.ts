@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
+import dbConnect from '@/lib/mongodb'
+import { User } from '@/models/User'
 
 // Add support for both GET and POST methods
 export async function GET(request: Request) {
@@ -15,22 +17,29 @@ async function handleSession(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     
-    // Return an empty object if no session exists
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({})
     }
 
-    // Ensure user object exists and has required properties
+    // Get fresh user data from database
+    await dbConnect()
+    const user = await User.findById(session.user.id)
+    
+    if (!user) {
+      return NextResponse.json({})
+    }
+
+    // Return sanitized session with fresh user data
     const sanitizedSession = {
       ...session,
-      user: session.user ? {
-        ...session.user,
-        id: session.user.id || undefined,
-        email: session.user.email || undefined,
-        username: session.user.username || undefined,
-        image: session.user.image || undefined,
-        avatar: session.user.avatar || undefined,
-      } : undefined
+      user: {
+        id: user._id.toString(),
+        email: user.email,
+        username: user.username,
+        avatar: user.avatar,
+        image: user.avatar, // Maintain compatibility with NextAuth
+        name: user.username // Maintain compatibility with NextAuth
+      }
     }
 
     return NextResponse.json(sanitizedSession)

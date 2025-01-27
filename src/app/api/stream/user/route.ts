@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import { StreamChat } from 'stream-chat'
+import { User } from '@/models/User'
+import dbConnect from '@/lib/mongodb'
 
 const serverClient = StreamChat.getInstance(
   process.env.NEXT_PUBLIC_STREAM_KEY!,
@@ -26,12 +28,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized - User ID mismatch' }, { status: 403 })
     }
 
+    // Get fresh user data from database
+    await dbConnect()
+    const user = await User.findById(targetUserId)
+    
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     try {
-      // Make sure we're sending all fields to Stream
+      // Use the provided avatar but fallback to database values for other fields
       const userData = {
         id: targetUserId,
-        name: name || session.user.username || '',
-        image: avatar || session.user.avatar || session.user.image, // Fallback to existing avatar
+        name: name || user.username,
+        image: avatar || user.avatar,
         role: 'user'
       };
 

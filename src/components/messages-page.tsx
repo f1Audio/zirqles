@@ -1,15 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChatPageComponent } from './chat-page'
 import { Button } from "./ui/button"
 import { Plus } from 'lucide-react'
 import { useStreamChat } from "@/contexts/StreamChatContext"
 import { SearchDialog } from "./layout/search-dialog"
+import { useQueryClient } from "@tanstack/react-query"
+import { useSession } from "next-auth/react"
 
 export function MessagesPageComponent() {
   const { createChat, setActiveChannel } = useStreamChat()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const queryClient = useQueryClient()
+  const { data: session } = useSession()
+
+  // Prefetch user data when component mounts
+  useEffect(() => {
+    if (session?.user?.email) {
+      queryClient.prefetchQuery({
+        queryKey: ['user'],
+        queryFn: async () => {
+          const response = await fetch('/api/user')
+          if (!response.ok) throw new Error('Failed to fetch user data')
+          return response.json()
+        }
+      })
+    }
+  }, [session?.user?.email, queryClient])
 
   const handleUserSelect = async (username: string) => {
     try {

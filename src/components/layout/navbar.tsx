@@ -14,6 +14,7 @@ import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 
 interface NavbarProps {
   onSearchOpen: () => void
@@ -21,10 +22,10 @@ interface NavbarProps {
 
 export function Navbar({ onSearchOpen }: NavbarProps) {
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const queryClient = useQueryClient()
   
-  const { data: userData } = useQuery({
+  const { data: userData, isLoading } = useQuery({
     queryKey: ['user'],
     queryFn: async () => {
       const response = await fetch('/api/user')
@@ -32,15 +33,25 @@ export function Navbar({ onSearchOpen }: NavbarProps) {
       return response.json()
     },
     enabled: !!session?.user?.email,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    refetchOnMount: true,
-    refetchOnWindowFocus: true
+    staleTime: Infinity,
+    gcTime: Infinity,
+    placeholderData: session?.user ? {
+      username: session.user.username,
+      avatar: session.user.avatar,
+    } : undefined,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false
   })
 
-  const userInitials = userData?.username?.slice(0, 2).toUpperCase() || 
-                      session?.user?.username?.slice(0, 2).toUpperCase() || 
-                      'CU'
-  const avatarUrl = userData?.avatar || session?.user?.avatar || ""
+  // Move useMemo before any conditional returns
+  const displayData = useMemo(() => {
+    if (status === 'loading') return null
+    return isLoading ? session?.user : userData
+  }, [isLoading, session?.user, userData, status])
+
+  // Early return after useMemo
+  if (!displayData) return null
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gray-900/80 backdrop-blur-xl border-b border-cyan-500/20 font-mono w-full">
@@ -57,34 +68,41 @@ export function Navbar({ onSearchOpen }: NavbarProps) {
           >
             <Search className="h-5 w-5" />
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Avatar className="h-8 w-8 ring-2 ring-cyan-500/50 ring-offset-2 ring-offset-gray-900 cursor-pointer hover:opacity-80 transition-opacity duration-300">
-                <AvatarImage src={avatarUrl} alt={userData?.username || session?.user?.username || '@user'} />
-                <AvatarFallback className="bg-cyan-900/50 text-cyan-100">{userInitials}</AvatarFallback>
-              </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent 
-              align="end" 
-              className="w-48 bg-gray-900/95 border-cyan-500/20 text-cyan-100 mt-2 rounded-xl overflow-hidden backdrop-blur-xl font-mono"
-            >
-              <DropdownMenuItem 
-                onClick={() => router.push('/settings')} 
-                className="rounded-xl hover:text-cyan-300 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02]"
+          {displayData && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Avatar className="h-8 w-8 ring-2 ring-cyan-500/50 ring-offset-2 ring-offset-gray-900 cursor-pointer hover:opacity-80 transition-opacity duration-300">
+                  <AvatarImage 
+                    src={displayData.avatar || ''} 
+                    alt={displayData.username || '@user'} 
+                  />
+                  <AvatarFallback className="bg-cyan-900/50 text-cyan-100">
+                    {displayData.username?.[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent 
+                align="end" 
+                className="w-48 bg-gray-900/95 border-cyan-500/20 text-cyan-100 mt-2 rounded-xl overflow-hidden backdrop-blur-xl font-mono"
               >
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-cyan-500/30" />
-              <DropdownMenuItem 
-                onClick={() => signOut()} 
-                className="rounded-xl hover:text-blue-400 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02]"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Logout</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem 
+                  onClick={() => router.push('/settings')} 
+                  className="rounded-xl hover:text-cyan-300 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02]"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-cyan-500/30" />
+                <DropdownMenuItem 
+                  onClick={() => signOut()} 
+                  className="rounded-xl hover:text-blue-400 cursor-pointer transition-all duration-300 ease-in-out hover:scale-[1.02]"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
     </header>
