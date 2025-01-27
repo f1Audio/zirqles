@@ -7,6 +7,13 @@ import { Post } from '@/models/Post'
 import { s3Client } from '@/lib/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import mongoose from 'mongoose';
+import { StreamChat } from 'stream-chat'
+
+// Initialize Stream client
+const serverClient = StreamChat.getInstance(
+  process.env.NEXT_PUBLIC_STREAM_KEY!,
+  process.env.STREAM_SECRET!
+)
 
 // GET /api/user
 export async function GET() {
@@ -153,25 +160,36 @@ export async function DELETE() {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Start a session for atomic operations
     const userId = user._id
 
-    // 1. Remove user's likes from all posts
+    // 1. Delete user from Stream Chat (hard delete)
+    try {
+      await serverClient.deleteUsers([userId.toString()], {
+        conversations: 'hard',
+        messages: 'hard',
+        user: 'hard'
+      });
+    } catch (streamError) {
+      console.error('Error deleting user from Stream:', streamError);
+      // Continue with account deletion even if Stream deletion fails
+    }
+
+    // 2. Remove user's likes from all posts
     await Post.updateMany(
       { likes: userId },
       { $pull: { likes: userId } }
     )
 
-    // 2. Remove user's reposts from all posts
+    // 3. Remove user's reposts from all posts
     await Post.updateMany(
       { reposts: userId },
       { $pull: { reposts: userId } }
     )
 
-    // 3. Find all posts that are replies by this user
+    // 4. Find all posts that are replies by this user
     const userReplies = await Post.find({ author: userId, replyTo: { $exists: true } })
     
-    // 4. Remove reply references from parent posts
+    // 5. Remove reply references from parent posts
     for (const reply of userReplies) {
       await Post.updateOne(
         { _id: reply.replyTo },
@@ -179,16 +197,16 @@ export async function DELETE() {
       )
     }
 
-    // 5. Delete all posts by the user (including replies)
+    // 6. Delete all posts by the user (including replies)
     await Post.deleteMany({ author: userId })
 
-    // 6. Remove all replies to user's posts from other users' posts
+    // 7. Remove all replies to user's posts from other users' posts
     const userPosts = await Post.find({ author: userId })
     const userPostIds = userPosts.map(post => post._id)
     
     await Post.deleteMany({ replyTo: { $in: userPostIds } })
 
-    // 7. Finally, delete the user
+    // 8. Delete avatar from S3 if exists
     if (user.avatar) {
       try {
         await s3Client.send(new DeleteObjectCommand({
@@ -201,7 +219,7 @@ export async function DELETE() {
       }
     }
 
-    // Delete all sessions for this user from the database
+    // 9. Delete all sessions for this user from the database
     if (process.env.NEXTAUTH_URL) {
       try {
         await fetch(`${process.env.NEXTAUTH_URL}/api/auth/session`, {
@@ -217,7 +235,7 @@ export async function DELETE() {
       }
     }
 
-    // Finally delete the user
+    // 10. Finally delete the user
     await User.deleteOne({ _id: userId })
 
     return NextResponse.json({ message: 'User and all associated data deleted successfully' })
