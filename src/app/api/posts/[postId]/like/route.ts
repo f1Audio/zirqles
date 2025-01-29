@@ -15,7 +15,6 @@ interface PopulatedPost extends Omit<IPost, 'likes' | 'reposts' | 'comments'> {
     likes: { _id: Types.ObjectId }[]
     reposts: { _id: Types.ObjectId }[]
     type: 'comment'
-    depth: number
     media: { type: 'image' | 'video'; url: string; key: string; }[]
   }[]
   media: { type: 'image' | 'video'; url: string; key: string; }[]
@@ -75,7 +74,7 @@ export async function POST(
         select: 'content author likes reposts comments type depth media'
       })
       .select('content author likes reposts comments type depth media')
-      .lean() as PopulatedPost
+      .lean() as unknown as PopulatedPost
 
     if (!updatedPost) {
       return NextResponse.json({ error: 'Post not found after update' }, { status: 404 })

@@ -15,6 +15,7 @@ import { Post } from './post'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { UserListDialog } from './user-list-dialog'
+import { useStreamChat } from '@/contexts/StreamChatContext'
 
 interface ProfilePageProps {
   username: string
@@ -90,6 +91,7 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
   const [commentContent, setCommentContent] = useState<{[key: string]: string}>({})
   const { data: comments = [] } = useComments(expandedPost)
   const [listType, setListType] = useState<'followers' | 'following' | null>(null)
+  const { createChat, setActiveChannel } = useStreamChat()
 
   const { data: currentUser } = useQuery({
     queryKey: ['user'],
@@ -176,9 +178,37 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     }
   }
 
-  const handleMessage = () => {
-    // TODO: Implement messaging functionality
-    console.log("Opening message dialog")
+  const handleMessage = async () => {
+    if (!session) {
+      toast.error('Please login to send messages')
+      return
+    }
+
+    try {
+      // Ensure we have a valid target user ID
+      const targetUserId = userData.id || userData._id
+      if (!targetUserId) {
+        console.error('Target user ID is missing:', userData)
+        toast.error('Failed to open chat')
+        return
+      }
+
+      // Create or get existing chat channel
+      const channel = await createChat(targetUserId.toString())
+      
+      if (channel) {
+        // Set as active channel
+        setActiveChannel(channel)
+        
+        // Navigate to messages page
+        router.push('/messages')
+      } else {
+        toast.error('Failed to open chat')
+      }
+    } catch (error) {
+      console.error('Error opening chat:', error)
+      toast.error('Failed to open chat')
+    }
   }
 
   const handleInteraction = async (
@@ -420,7 +450,6 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                       reposts: post.reposts || [],
                       comments: post.comments || [],
                       type: post.type || 'post',
-                      depth: post.depth || 0,
                       createdAt: post.createdAt,
                       media: post.media || []
                     }}

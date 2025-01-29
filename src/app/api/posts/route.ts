@@ -123,7 +123,6 @@ export async function GET() {
           createdAt: nestedComment.createdAt
         })),
         type: comment.type,
-        depth: comment.depth,
         media: comment.media || [],
         createdAt: comment.createdAt
       })),

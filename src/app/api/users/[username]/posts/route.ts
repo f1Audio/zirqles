@@ -58,7 +58,6 @@ export async function GET(
         reposts: comment.reposts.map((repost: any) => repost._id.toString()),
         comments: comment.comments || [],
         type: comment.type,
-        depth: comment.depth,
         createdAt: comment.createdAt
       })),
       type: post.type || 'post',
