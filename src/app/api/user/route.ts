@@ -218,6 +218,20 @@ export async function DELETE() {
       }
     }
 
+    // 8.5. Remove user from others' followers and following lists
+    await Promise.all([
+      // Remove user from others' followers lists
+      User.updateMany(
+        { followers: userId },
+        { $pull: { followers: userId } }
+      ),
+      // Remove user from others' following lists
+      User.updateMany(
+        { following: userId },
+        { $pull: { following: userId } }
+      )
+    ]);
+
     // 9. Delete all sessions for this user from the database
     if (process.env.NEXTAUTH_URL) {
       try {
