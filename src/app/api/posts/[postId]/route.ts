@@ -54,7 +54,11 @@ export async function DELETE(
     // Delete the post/comment itself
     await Post.deleteOne({ _id: post._id })
 
-    return NextResponse.json({ message: 'Post deleted successfully' })
+    // Return whether it was a comment or post based on the type field
+    return NextResponse.json({ 
+      message: post.type === 'comment' ? 'Comment deleted successfully' : 'Post deleted successfully',
+      type: post.type // This will be either 'comment' or 'post'
+    })
   } catch (error) {
     console.error('Error in delete API:', error)
     return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 })
