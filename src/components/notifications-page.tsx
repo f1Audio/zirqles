@@ -5,19 +5,31 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bell, Heart, MessageCircle, UserPlus, Zap, Trash2, Users } from 'lucide-react'
+import { Bell, Heart, MessageCircle, UserPlus, Zap, Trash2, Users, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { cn } from "@/lib/utils"
 
 interface Notification {
-  id: string
-  type: 'like' | 'comment' | 'follow' | 'repost' | 'system'
+  _id: string
+  type: 'like' | 'comment' | 'follow' | 'repost' | 'system' | 'mention'
   user: string
   avatar?: string
   content: string
   time: string
   read: boolean
   postId?: string
+  sender?: {
+    username: string
+    avatar: string
+  }
+  post?: {
+    type: string
+    content: string
+    parentPost?: string
+    _id: string
+  }
+  createdAt: string
 }
 
 export function NotificationsPageComponent() {
@@ -30,8 +42,7 @@ export function NotificationsPageComponent() {
     queryFn: async () => {
       const response = await fetch('/api/notifications')
       if (!response.ok) throw new Error('Failed to fetch notifications')
-      const data = await response.json()
-      return data.notifications
+      return response.json()
     },
     refetchInterval: 30000,
     staleTime: 30000
@@ -56,7 +67,7 @@ export function NotificationsPageComponent() {
       // Optimistically update notifications
       queryClient.setQueryData(['notifications'], (old: any) => 
         old?.map((n: Notification) => 
-          n.id === notificationId ? { ...n, read: true } : n
+          n._id === notificationId ? { ...n, read: true } : n
         )
       )
 
@@ -126,6 +137,8 @@ export function NotificationsPageComponent() {
         return <UserPlus className="h-4 w-4 text-green-400" />
       case 'system':
         return <Zap className="h-4 w-4 text-yellow-400" />
+      case 'mention':
+        return <ArrowRight className="h-4 w-4 text-cyan-400" />
       default:
         return <Bell className="h-4 w-4 text-cyan-400" />
     }
@@ -149,7 +162,7 @@ export function NotificationsPageComponent() {
         // Then mark all as read
         Promise.all(
           unreadNotifications.map((notification: Notification) => 
-            markAsRead.mutateAsync(notification.id)
+            markAsRead.mutateAsync(notification._id)
           )
         ).catch(error => {
           console.error('Error marking notifications as read:', error)
@@ -159,6 +172,84 @@ export function NotificationsPageComponent() {
       }
     }
   }, [isLoading, notifications, markAsRead, queryClient])
+
+  const getNotificationContent = (notification: Notification) => {
+    switch (notification.type) {
+      case 'mention':
+      case 'like':
+      case 'comment':
+        return (
+          <div className="flex items-center space-x-4">
+            <Avatar className="w-10 h-10 border-2 border-cyan-500 ring-2 ring-cyan-500/50">
+              <AvatarImage src={notification.sender?.avatar} alt={notification.sender?.username} />
+              <AvatarFallback>{notification.sender?.username?.[0]?.toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <p className="text-sm">
+                <Link 
+                  href={`/user/${notification.sender?.username}`} 
+                  className="font-bold text-cyan-400 hover:text-cyan-300"
+                >
+                  {notification.sender?.username}
+                </Link>{' '}
+                <span className="text-cyan-100">{notification.content}</span>
+              </p>
+              {notification.post?.content && (
+                <p className="text-sm text-cyan-300/70 mt-1 line-clamp-2">
+                  "{notification.post.content}"
+                </p>
+              )}
+              <p className="text-xs text-cyan-500 mt-1">{notification.time}</p>
+            </div>
+            <Link
+              href={notification.post?.type === 'comment' 
+                ? `/post/${notification.post.parentPost}#${notification.post._id}`
+                : `/post/${notification.post?._id}`
+              }
+              className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full"
+            >
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        );
+      case 'follow':
+        return (
+          <div className="flex items-center space-x-4">
+            <Avatar className="w-10 h-10 border-2 border-cyan-500 ring-2 ring-cyan-500/50">
+              <AvatarImage src={notification.avatar} alt={notification.user} />
+              <AvatarFallback>{notification.user?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <p className="text-sm">
+                <Link href={`/user/${notification.user}`} className="font-bold text-cyan-400">{notification.user}</Link>{' '}
+                <span className="text-cyan-100">{notification.content}</span>
+              </p>
+              <p className="text-xs text-cyan-500 mt-1">{notification.time}</p>
+            </div>
+            <div className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full">
+              {getIcon(notification.type)}
+            </div>
+          </div>
+        );
+      default:
+        return (
+          <div className="flex items-center space-x-4">
+            <div className="w-10 h-10 rounded-full bg-cyan-500/20 border-2 border-cyan-500 flex items-center justify-center">
+              {getIcon(notification.type)}
+            </div>
+            <div className="flex-1">
+              <p className="text-sm">
+                <span className="text-cyan-100">{notification.content}</span>
+              </p>
+              <p className="text-xs text-cyan-500 mt-1">{notification.time}</p>
+            </div>
+            <div className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full">
+              {getIcon(notification.type)}
+            </div>
+          </div>
+        );
+    }
+  }
 
   return (
     <div className="container mx-auto px-4 h-screen flex items-center md:block">
@@ -211,31 +302,13 @@ export function NotificationsPageComponent() {
                 ) : (
                   filterNotifications(activeFilter).map((notification: Notification) => (
                     <div
-                      key={notification.id}
-                      className="bg-gray-700/30 rounded-xl p-4 backdrop-blur-sm border border-cyan-500/20 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 transition-all duration-300 ease-in-out hover:scale-[1.02]"
+                      key={notification._id}
+                      className={cn(
+                        "bg-gray-700/30 rounded-xl p-4 backdrop-blur-sm border border-cyan-500/20 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 transition-all duration-300 ease-in-out hover:scale-[1.02]",
+                        !notification.read && "bg-cyan-900/20"
+                      )}
                     >
-                      <div className="flex items-center space-x-4">
-                        {notification.avatar ? (
-                          <Avatar className="w-10 h-10 border-2 border-cyan-500 ring-2 ring-cyan-500/50">
-                            <AvatarImage src={notification.avatar} alt={notification.user} />
-                            <AvatarFallback>{notification.user?.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-cyan-500/20 border-2 border-cyan-500 flex items-center justify-center">
-                            {getIcon(notification.type)}
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <p className="text-sm">
-                            <Link href={`/user/${notification.user}`} className="font-bold text-cyan-400">{notification.user}</Link>{' '}
-                            <span className="text-cyan-100">{notification.content}</span>
-                          </p>
-                          <p className="text-xs text-cyan-500 mt-1">{notification.time}</p>
-                        </div>
-                        <div className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full">
-                          {getIcon(notification.type)}
-                        </div>
-                      </div>
+                      {getNotificationContent(notification)}
                     </div>
                   ))
                 )}

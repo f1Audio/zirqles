@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import dbConnect from '@/lib/mongodb'
 import { Post, IPost } from '@/models/Post'
 import { Types } from 'mongoose'
+import { Notification } from '@/models/notification'
 
 interface PopulatedPost extends Omit<IPost, 'likes' | 'reposts' | 'comments'> {
   likes: { _id: Types.ObjectId }[]
@@ -41,8 +42,24 @@ export async function POST(
 
     if (hasLiked) {
       post.likes = post.likes.filter((id: Types.ObjectId) => id.toString() !== userId)
+      await Notification.deleteOne({
+        recipient: post.author,
+        sender: userId,
+        type: 'like',
+        post: post._id
+      })
     } else {
       post.likes.push(new Types.ObjectId(userId))
+      
+      if (post.author.toString() !== userId) {
+        await Notification.create({
+          recipient: post.author,
+          sender: userId,
+          type: 'like',
+          post: post._id,
+          read: false
+        })
+      }
     }
 
     await post.save()

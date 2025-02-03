@@ -5,6 +5,8 @@ import dbConnect from '@/lib/mongodb'
 import { Post, IPost } from '@/models/Post'
 import { User } from '@/models/User'
 import mongoose from 'mongoose'
+import { Notification } from '@/models/notification'
+import { formatTextWithMentions } from '@/lib/utils'
 
 export async function GET() {
   try {
@@ -180,6 +182,31 @@ export async function POST(req: Request) {
     
     const newPost = new Post(postData)
     const savedPost = await newPost.save()
+
+    // Handle mentions and create notifications
+    const mentions = formatTextWithMentions(content)
+      .filter(part => part.type === 'mention')
+      .map(part => part.username)
+
+    if (mentions.length > 0) {
+      const mentionedUsers = await User.find({
+        username: { $in: mentions }
+      }).select('_id')
+
+      const notifications = mentionedUsers
+        .filter(user => user._id.toString() !== session.user.id) // Don't notify self
+        .map(user => ({
+          recipient: user._id,
+          sender: session.user.id,
+          type: 'mention',
+          post: savedPost._id,
+          read: false
+        }))
+
+      if (notifications.length > 0) {
+        await Notification.insertMany(notifications)
+      }
+    }
 
     // Fetch the post with populated author
     const populatedPost = await Post.findById(savedPost._id)

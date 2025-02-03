@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import connectDB from '@/lib/mongodb'
 import { Notification } from '@/lib/models/notification'
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
@@ -13,27 +13,44 @@ export async function GET() {
 
     await connectDB()
 
-    const notifications = await Notification.find({ recipient: session.user.id })
-      .sort({ createdAt: -1 })
-      .populate('sender', 'username avatar')
-      .populate('post', 'content')
-      .lean()
+    const notifications = await Notification.find({
+      recipient: session.user.id
+    })
+    .populate('sender', 'username avatar')
+    .populate({
+      path: 'post',
+      select: 'content type parentPost author likes comments reposts createdAt',
+      populate: {
+        path: 'author',
+        select: 'username avatar'
+      }
+    })
+    .sort({ createdAt: -1 })
+    .lean()
 
+    // Format notifications consistently
     const formattedNotifications = notifications.map(notification => ({
-      id: notification._id,
+      _id: notification._id,
       type: notification.type,
       user: notification.sender.username,
       avatar: notification.sender.avatar,
       content: getNotificationContent(notification),
-      time: getRelativeTime(notification.createdAt),
+      time: getRelativeTime(new Date(notification.createdAt)),
       read: notification.read,
-      postId: notification.post?._id
+      postId: notification.post?._id,
+      // Include additional fields for mention notifications
+      sender: notification.sender,
+      post: notification.post,
+      createdAt: notification.createdAt
     }))
 
-    return NextResponse.json({ notifications: formattedNotifications })
+    return NextResponse.json(formattedNotifications)
   } catch (error) {
     console.error('Error fetching notifications:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to fetch notifications' },
+      { status: 500 }
+    )
   }
 }
 
@@ -93,8 +110,10 @@ function getNotificationContent(notification: any) {
       return 'started following you'
     case 'repost':
       return 'reposted your post'
+    case 'mention':
+      return `mentioned you in a ${notification.post?.type || 'post'}`
     default:
-      return notification.content
+      return notification.content || ''
   }
 }
 
