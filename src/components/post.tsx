@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from '@/lib/utils'
+import { formatTextWithMentions } from '@/lib/utils'
 
 interface Author {
   _id: string
@@ -384,7 +385,21 @@ export function Post({
               </div>
               
               <p className="text-sm text-cyan-100/90 break-words whitespace-pre-wrap">
-                {post.content}
+                {formatTextWithMentions(post.content).map((part, index) => {
+                  if (part.type === 'mention') {
+                    return (
+                      <Link
+                        key={index}
+                        href={`/user/${part.username}`}
+                        className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        @{part.username}
+                      </Link>
+                    )
+                  }
+                  return <span key={index}>{part.content}</span>
+                })}
               </p>
 
               {post.media && post.media.length > 0 && (
@@ -513,7 +528,21 @@ export function Post({
             "mt-1 break-words whitespace-pre-wrap",
             isCommentPost(post) ? 'text-sm text-cyan-100/90' : 'text-cyan-100'
           )}>
-            {post.content}
+            {formatTextWithMentions(post.content).map((part, index) => {
+              if (part.type === 'mention') {
+                return (
+                  <Link
+                    key={index}
+                    href={`/user/${part.username}`}
+                    className="text-cyan-400 hover:text-cyan-300 hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    @{part.username}
+                  </Link>
+                )
+              }
+              return <span key={index}>{part.content}</span>
+            })}
           </p>
 
           {post.media && post.media.length > 0 && (

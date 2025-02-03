@@ -4,6 +4,7 @@ import { Textarea } from "./ui/textarea"
 import { Image as ImageIcon, Film, X } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { formatTextWithMentions } from '@/lib/utils'
 
 interface PostComposerProps {
   value: string
@@ -82,16 +83,42 @@ export function PostComposer({ value, onChange, onSubmit }: PostComposerProps) {
       toast.error('Please wait for media upload to complete')
       return
     }
+
+    // Extract mentions from the post content
+    const mentions = formatTextWithMentions(value)
+      .filter(part => part.type === 'mention')
+      .map(part => (part as { username: string }).username)
+
+    // Validate mentions if needed
+    if (mentions.length > 0) {
+      try {
+        const response = await fetch('/api/users/validate-mentions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usernames: mentions })
+        })
+        
+        if (!response.ok) {
+          const data = await response.json()
+          toast.error(data.message || 'Invalid mentions in your post')
+          return
+        }
+      } catch (error) {
+        console.error('Error validating mentions:', error)
+        toast.error('Failed to validate mentions')
+        return
+      }
+    }
     
     console.log('Submitting post with media:', media)
     try {
-      await onSubmit(media.length > 0 ? media : undefined);
-      setMedia([]); // Clear media after successful post
+      await onSubmit(media.length > 0 ? media : undefined)
+      setMedia([]) // Clear media after successful post
     } catch (error) {
-      console.error('Error creating post:', error);
-      toast.error('Failed to create post');
+      console.error('Error creating post:', error)
+      toast.error('Failed to create post')
     }
-  };
+  }
 
   return (
     <div className="mb-4 bg-cyan-900/20 rounded-xl p-4 backdrop-blur-sm border border-cyan-500/30 
@@ -182,7 +209,7 @@ export function PostComposer({ value, onChange, onSubmit }: PostComposerProps) {
           disabled={!value.trim() && media.length === 0}
           className="bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white font-medium rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-md hover:shadow-cyan-500/20"
         >
-          {isUploading ? 'Uploading...' : 'Broadcast'}
+          {isUploading ? 'Uploading...' : 'Post'}
         </Button>
       </div>
     </div>
