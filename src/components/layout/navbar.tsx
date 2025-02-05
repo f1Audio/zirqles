@@ -55,11 +55,11 @@ export function Navbar({ onSearchOpen }: NavbarProps) {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-gray-900/80 backdrop-blur-xl border-b border-cyan-500/20 font-mono w-full">
-      <div className="px-12 py-4 flex items-center justify-between">
+      <div className="px-4 md:px-12 py-4 flex items-center justify-between">
         <h1 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 font-mono">
           Zirqles
         </h1>
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center gap-4 md:gap-6">
           <Button 
             variant="ghost" 
             size="icon" 
