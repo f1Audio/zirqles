@@ -261,7 +261,7 @@ export function NotificationsPageComponent() {
                     <div
                       key={notification._id}
                       className={cn(
-                        "bg-gray-700/30 rounded-xl p-4 backdrop-blur-sm border border-cyan-500/20 shadow-lg shadow-cyan-500/10 hover:shadow-cyan-400/20 transition-all duration-300 ease-in-out hover:scale-[1.02]",
+                        "bg-gray-700/30 rounded-xl p-4 border border-cyan-500/20",
                         !notification.read && "bg-cyan-900/20"
                       )}
                     >
