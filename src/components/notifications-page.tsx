@@ -32,6 +32,30 @@ interface Notification {
   createdAt: string
 }
 
+function formatTimestamp(dateString: string) {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+  
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds}s`
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60)
+    return `${minutes}m`
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600)
+    return `${hours}h`
+  } else if (diffInSeconds < 604800) {
+    const days = Math.floor(diffInSeconds / 86400)
+    return `${days}d`
+  } else {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+}
+
 export function NotificationsPageComponent() {
   const [activeFilter, setActiveFilter] = useState('all')
   const queryClient = useQueryClient()
@@ -277,19 +301,21 @@ export function NotificationsPageComponent() {
                               {renderNotificationContent(notification)}
                             </p>
                           </div>
-                          
-                          
-                          <p className="text-xs text-cyan-500 mt-1">{notification.time}</p>
+                          <p className="text-xs text-cyan-500 mt-1">
+                            {formatTimestamp(notification.createdAt)}
+                          </p>
                         </div>
-                        <Link
-                          href={notification.post?.type === 'comment' 
-                            ? `/post/${notification.post.parentPost}`
-                            : `/post/${notification.post?._id}`
-                          }
-                          className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full"
-                        >
-                          <ArrowRight className="h-4 w-4" />
-                        </Link>
+                        {notification.type !== 'follow' && notification.post && (
+                          <Link
+                            href={notification.post?.type === 'comment' 
+                              ? `/post/${notification.post.parentPost}`
+                              : `/post/${notification.post?._id}`
+                            }
+                            className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full"
+                          >
+                            <ArrowRight className="h-4 w-4" />
+                          </Link>
+                        )}
                       </div>
                     </div>
                   ))

@@ -86,6 +86,31 @@ function isCommentPost(post: Post): post is CommentPost {
   return post.type === 'comment'
 }
 
+// Add the formatTimestamp function near the top of the file
+function formatTimestamp(dateString: string) {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+  
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds}s`
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60)
+    return `${minutes}m`
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600)
+    return `${hours}h`
+  } else if (diffInSeconds < 604800) {
+    const days = Math.floor(diffInSeconds / 86400)
+    return `${days}d`
+  } else {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+}
+
 const MediaDisplay = ({ media }: { media: Array<{ type: string; url: string }> }) => {
   if (!media || media.length === 0) return null;
   
@@ -382,6 +407,10 @@ export function Post({
                 <span className="text-xs text-cyan-500">
                   @{post.author.username.toLowerCase()}
                 </span>
+                <span className="text-xs text-cyan-500/50">·</span>
+                <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400">
+                  {formatTimestamp(post.createdAt)}
+                </span>
               </div>
               
               <p className="text-sm text-cyan-100/90 break-words whitespace-pre-wrap">
@@ -497,6 +526,10 @@ export function Post({
                 isCommentPost(post) ? 'text-xs' : 'text-sm'
               )}>
                 @{post.author.username.toLowerCase()}
+              </span>
+              <span className="text-xs text-cyan-500/50">·</span>
+              <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400">
+                {formatTimestamp(post.createdAt)}
               </span>
             </div>
             
