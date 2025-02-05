@@ -36,6 +36,7 @@ body {
 
 .str-chat__message-input {
   background: transparent !important;
+  padding-bottom: 1rem !important;
 }
 
 .str-chat__message-input:focus {
@@ -70,4 +71,8 @@ body {
 .main-content {
   height: calc(100vh - 4rem);
   overflow: hidden;
+}
+
+.str-chat__messaging-input {
+  padding-bottom: 1rem !important;
 }

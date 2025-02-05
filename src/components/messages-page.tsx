@@ -65,7 +65,7 @@ export function MessagesPageComponent() {
     <div className="container mx-auto px-4">
       <div className="max-w-6xl mx-auto pb-20 md:pb-8">
         <div className="pt-20">
-          <div className="bg-gray-800/50 rounded-2xl backdrop-blur-xl border border-cyan-500/30 overflow-hidden">
+          <div className="bg-gray-800/50 rounded-2xl backdrop-blur-xl border border-cyan-500/30 overflow-hidden md:h-[calc(100vh-8rem)] md:shadow-lg md:shadow-cyan-500/10">
             <ChatPageComponent />
           </div>
         </div>
