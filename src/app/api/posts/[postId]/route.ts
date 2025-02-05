@@ -146,16 +146,16 @@ export async function DELETE(
     }
 
     // Remove comment reference from parent post if this is a comment
-    if (post.parentId) {
+    if (post.parentPost) {
       await Post.updateOne(
-        { _id: post.parentId },
+        { _id: post.parentPost },
         { $pull: { comments: post._id } }
       )
     }
 
     // Delete all nested comments recursively
     const deleteNestedComments = async (postId: string) => {
-      const comments = await Post.find({ parentId: postId })
+      const comments = await Post.find({ parentPost: postId })
       for (const comment of comments) {
         await deleteNestedComments(comment._id.toString())
         await Post.deleteOne({ _id: comment._id })

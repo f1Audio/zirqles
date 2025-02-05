@@ -2,35 +2,32 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import connectDB from '@/lib/mongodb'
-import { Notification } from '@/lib/models/notification'
+import { Notification } from '@/models/notification'
 
 export async function GET(req: Request) {
   try {
+    await connectDB()
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await connectDB()
+    const notifications = await Notification.find({ recipient: session.user.id })
+      .populate('sender', 'username avatar')
+      .populate({
+        path: 'post',
+        populate: {
+          path: 'parentPost',
+          select: '_id'
+        },
+        select: 'type content parentPost _id'
+      })
+      .sort({ createdAt: -1 })
+      .lean()
 
-    const notifications = await Notification.find({
-      recipient: session.user.id
-    })
-    .populate('sender', 'username avatar')
-    .populate({
-      path: 'post',
-      select: 'content type parentPost author likes comments reposts createdAt',
-      populate: {
-        path: 'author',
-        select: 'username avatar'
-      }
-    })
-    .sort({ createdAt: -1 })
-    .lean()
-
-    // Format notifications consistently
-    const formattedNotifications = notifications.map(notification => ({
-      _id: notification._id,
+    // Format notifications
+    const formattedNotifications = notifications.map((notification: any) => ({
+      _id: notification._id.toString(),
       type: notification.type,
       user: notification.sender.username,
       avatar: notification.sender.avatar,
@@ -38,19 +35,23 @@ export async function GET(req: Request) {
       time: getRelativeTime(new Date(notification.createdAt)),
       read: notification.read,
       postId: notification.post?._id,
-      // Include additional fields for mention notifications
-      sender: notification.sender,
-      post: notification.post,
+      sender: {
+        username: notification.sender.username,
+        avatar: notification.sender.avatar
+      },
+      post: notification.post ? {
+        type: notification.post.type,
+        content: notification.post.content,
+        _id: notification.post._id.toString(),
+        parentPost: notification.post.parentPost?._id.toString()
+      } : undefined,
       createdAt: notification.createdAt
     }))
 
     return NextResponse.json(formattedNotifications)
   } catch (error) {
     console.error('Error fetching notifications:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch notifications' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 })
   }
 }
 
@@ -101,17 +102,23 @@ export async function DELETE() {
 
 // Helper function to format notification content
 function getNotificationContent(notification: any) {
+  const username = notification.sender?.username || 'Someone'
+  
   switch (notification.type) {
     case 'like':
-      return 'liked your post'
+      return `${username} liked your post`
+    case 'comment_like':
+      return `${username} liked your comment`
     case 'comment':
-      return 'commented on your post'
+      return `${username} commented on your post`
     case 'follow':
-      return 'started following you'
+      return `${username} started following you`
     case 'repost':
-      return 'reposted your post'
+      return `${username} reposted your post`
     case 'mention':
-      return `mentioned you in a ${notification.post?.type || 'post'}`
+      // Check if the mention is in a comment or post
+      const contentType = notification.post?.type === 'comment' ? 'comment' : 'post'
+      return `${username} mentioned you in a ${contentType}`
     default:
       return notification.content || ''
   }

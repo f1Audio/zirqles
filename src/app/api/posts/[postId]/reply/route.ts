@@ -6,6 +6,7 @@ import { Post } from '@/models/Post'
 import { User } from '@/models/User'
 import { Notification } from '@/models/notification'
 import { formatTextWithMentions } from '@/lib/utils'
+import mongoose from 'mongoose'
 
 export async function POST(
   req: Request,
@@ -21,6 +22,9 @@ export async function POST(
     if (!content?.trim()) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 })
     }
+
+    console.log('Raw content:', content) // Debug log
+    console.log('Formatted mentions:', formatTextWithMentions(content)) // Debug log
 
     await dbConnect()
 
@@ -41,10 +45,10 @@ export async function POST(
     // Add comment notification for post author
     if (parentPost?.author.toString() !== session.user.id) {
       notifications.push({
-        recipient: parentPost?.author,
-        sender: session.user.id,
+        recipient: new mongoose.Types.ObjectId(parentPost?.author),
+        sender: new mongoose.Types.ObjectId(session.user.id),
         type: 'comment',
-        post: params.postId,
+        post: new mongoose.Types.ObjectId(params.postId),
         read: false
       })
     }
@@ -54,28 +58,35 @@ export async function POST(
       .filter(part => part.type === 'mention')
       .map(part => part.username)
 
+    console.log('Found mentions:', mentions) // Debug log
+
     if (mentions.length > 0) {
       const mentionedUsers = await User.find({
         username: { $in: mentions }
       }).select('_id')
 
+      console.log('Found mentioned users:', mentionedUsers) // Debug log
+
       // Add mention notifications
-      notifications.push(
-        ...mentionedUsers
-          .filter(user => user._id.toString() !== session.user.id) // Don't notify self
-          .map(user => ({
-            recipient: user._id,
-            sender: session.user.id,
-            type: 'mention',
-            post: comment._id,
-            read: false
-          }))
-      )
+      const mentionNotifications = mentionedUsers
+        .filter(user => user._id.toString() !== session.user.id)
+        .map(user => ({
+          recipient: new mongoose.Types.ObjectId(user._id),
+          sender: new mongoose.Types.ObjectId(session.user.id),
+          type: 'mention',
+          post: new mongoose.Types.ObjectId(comment._id),
+          read: false
+        }))
+
+      console.log('Created mention notifications:', mentionNotifications) // Debug log
+      notifications.push(...mentionNotifications)
     }
 
     // Create all notifications
     if (notifications.length > 0) {
-      await Notification.insertMany(notifications)
+      console.log('Attempting to create notifications:', notifications) // Debug log
+      const createdNotifications = await Notification.insertMany(notifications)
+      console.log('Created notifications:', createdNotifications) // Debug log
     }
 
     // Return the populated comment

@@ -173,81 +173,38 @@ export function NotificationsPageComponent() {
     }
   }, [isLoading, notifications, markAsRead, queryClient])
 
-  const getNotificationContent = (notification: Notification) => {
-    switch (notification.type) {
-      case 'mention':
+  const renderNotificationContent = (notification: Notification) => {
+    const { user, content } = notification
+    const contentParts = content.split(user)
+    
+    return (
+      <span className="text-cyan-100">
+        <Link 
+          href={`/user/${user}`}
+          className="font-bold text-cyan-400 hover:text-cyan-300"
+        >
+          {user}
+        </Link>
+        {contentParts[1]}
+      </span>
+    )
+  }
+
+  const renderNotificationIcon = (type: string) => {
+    switch (type) {
       case 'like':
+      case 'comment_like':
+        return <Heart className="h-4 w-4 text-pink-400" />
       case 'comment':
-        return (
-          <div className="flex items-center space-x-4">
-            <Avatar className="w-10 h-10 border-2 border-cyan-500 ring-2 ring-cyan-500/50">
-              <AvatarImage src={notification.sender?.avatar} alt={notification.sender?.username} />
-              <AvatarFallback>{notification.sender?.username?.[0]?.toUpperCase()}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <p className="text-sm">
-                <Link 
-                  href={`/user/${notification.sender?.username}`} 
-                  className="font-bold text-cyan-400 hover:text-cyan-300"
-                >
-                  {notification.sender?.username}
-                </Link>{' '}
-                <span className="text-cyan-100">{notification.content}</span>
-              </p>
-              {notification.post?.content && (
-                <p className="text-sm text-cyan-300/70 mt-1 line-clamp-2">
-                  "{notification.post.content}"
-                </p>
-              )}
-              <p className="text-xs text-cyan-500 mt-1">{notification.time}</p>
-            </div>
-            <Link
-              href={notification.post?.type === 'comment' 
-                ? `/post/${notification.post.parentPost}#${notification.post._id}`
-                : `/post/${notification.post?._id}`
-              }
-              className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full"
-            >
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        );
+        return <MessageCircle className="h-4 w-4 text-cyan-400" />
       case 'follow':
-        return (
-          <div className="flex items-center space-x-4">
-            <Avatar className="w-10 h-10 border-2 border-cyan-500 ring-2 ring-cyan-500/50">
-              <AvatarImage src={notification.avatar} alt={notification.user} />
-              <AvatarFallback>{notification.user?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <p className="text-sm">
-                <Link href={`/user/${notification.user}`} className="font-bold text-cyan-400">{notification.user}</Link>{' '}
-                <span className="text-cyan-100">{notification.content}</span>
-              </p>
-              <p className="text-xs text-cyan-500 mt-1">{notification.time}</p>
-            </div>
-            <div className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full">
-              {getIcon(notification.type)}
-            </div>
-          </div>
-        );
+        return <UserPlus className="h-4 w-4 text-green-400" />
+      case 'repost':
+        return <Users className="h-4 w-4 text-purple-400" />
+      case 'mention':
+        return <Zap className="h-4 w-4 text-yellow-400" />
       default:
-        return (
-          <div className="flex items-center space-x-4">
-            <div className="w-10 h-10 rounded-full bg-cyan-500/20 border-2 border-cyan-500 flex items-center justify-center">
-              {getIcon(notification.type)}
-            </div>
-            <div className="flex-1">
-              <p className="text-sm">
-                <span className="text-cyan-100">{notification.content}</span>
-              </p>
-              <p className="text-xs text-cyan-500 mt-1">{notification.time}</p>
-            </div>
-            <div className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full">
-              {getIcon(notification.type)}
-            </div>
-          </div>
-        );
+        return <Bell className="h-4 w-4 text-cyan-400" />
     }
   }
 
@@ -308,7 +265,32 @@ export function NotificationsPageComponent() {
                         !notification.read && "bg-cyan-900/20"
                       )}
                     >
-                      {getNotificationContent(notification)}
+                      <div className="flex items-center space-x-4">
+                        <Avatar className="w-10 h-10 border-2 border-cyan-500 ring-2 ring-cyan-500/50">
+                          <AvatarImage src={notification.sender?.avatar} alt={notification.sender?.username} />
+                          <AvatarFallback>{notification.sender?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            {renderNotificationIcon(notification.type)}
+                            <p className="text-sm">
+                              {renderNotificationContent(notification)}
+                            </p>
+                          </div>
+                          
+                          
+                          <p className="text-xs text-cyan-500 mt-1">{notification.time}</p>
+                        </div>
+                        <Link
+                          href={notification.post?.type === 'comment' 
+                            ? `/post/${notification.post.parentPost}`
+                            : `/post/${notification.post?._id}`
+                          }
+                          className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full"
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      </div>
                     </div>
                   ))
                 )}

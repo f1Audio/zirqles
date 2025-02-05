@@ -55,7 +55,7 @@ export async function POST(
         await Notification.create({
           recipient: post.author,
           sender: userId,
-          type: 'like',
+          type: post.type === 'comment' ? 'comment_like' : 'like',
           post: post._id,
           read: false
         })

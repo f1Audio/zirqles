@@ -84,6 +84,7 @@ export async function POST(
       content,
       author: session.user.id,
       type: 'comment',
+      parentPost: params.postId,
       media: []
     })
 

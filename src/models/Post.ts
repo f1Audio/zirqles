@@ -9,6 +9,7 @@ export interface IPost {
   reposts: mongoose.Types.ObjectId[]
   comments: mongoose.Types.ObjectId[]
   type: 'post' | 'comment'
+  parentPost?: mongoose.Types.ObjectId
   media: Array<{
     type: 'image' | 'video'
     url: string
@@ -32,6 +33,7 @@ const PostSchema = new mongoose.Schema<IPost>({
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   reposts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+  parentPost: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
   type: { type: String, enum: ['post', 'comment'], required: true, default: 'post' },
 }, {
   timestamps: true,

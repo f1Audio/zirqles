@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import connectDB from '@/lib/mongodb'
-import { Notification } from '@/lib/models/notification'
+import { Notification } from '@/models/notification'
 
 export async function GET() {
   try {
