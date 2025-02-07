@@ -253,40 +253,47 @@ export function Post({
     if (type === 'like') {
       // Update main posts query
       queryClient.setQueryData(['posts'], (oldData: any) => {
-        const posts = oldData || []
-        return posts.map((p: any) => {
-          // Update comments within posts
-          if (p.comments) {
-            return {
-              ...p,
-              comments: p.comments.map((c: any) => {
-                if (c._id === post._id) {
-                  const userId = session?.user?.id || ''
-                  const hasLiked = c.likes.includes(userId)
-                  return {
-                    ...c,
-                    likes: hasLiked 
-                      ? c.likes.filter((id: string) => id !== userId)
-                      : [...c.likes, userId]
-                  }
+        if (!oldData?.pages) return oldData
+        
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            posts: page.posts.map((p: any) => {
+              // Update comments within posts
+              if (p.comments) {
+                return {
+                  ...p,
+                  comments: p.comments.map((c: any) => {
+                    if (c._id === post._id) {
+                      const userId = session?.user?.id || ''
+                      const hasLiked = c.likes.includes(userId)
+                      return {
+                        ...c,
+                        likes: hasLiked 
+                          ? c.likes.filter((id: string) => id !== userId)
+                          : [...c.likes, userId]
+                      }
+                    }
+                    return c
+                  })
                 }
-                return c
-              })
-            }
-          }
-          // Update main post if it matches
-          if (p._id === post._id) {
-            const userId = session?.user?.id || ''
-            const hasLiked = p.likes.includes(userId)
-            return {
-              ...p,
-              likes: hasLiked 
-                ? p.likes.filter((id: string) => id !== userId)
-                : [...p.likes, userId]
-            }
-          }
-          return p
-        })
+              }
+              // Update main post if it matches
+              if (p._id === post._id) {
+                const userId = session?.user?.id || ''
+                const hasLiked = p.likes.includes(userId)
+                return {
+                  ...p,
+                  likes: hasLiked 
+                    ? p.likes.filter((id: string) => id !== userId)
+                    : [...p.likes, userId]
+                }
+              }
+              return p
+            })
+          }))
+        }
       })
 
       // Also update individual post comments query if it exists

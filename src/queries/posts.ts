@@ -85,31 +85,37 @@ export function usePostMutations(session: Session | null) {
         : undefined
 
       // Optimistically update posts
-      const updatePostsInCache = (old: any) => 
-        old?.map((post: any) => {
-          if (post._id === postId) {
-            const userId = session?.user?.id
-            const hasLiked = post.likes.includes(userId)
-            return {
-              ...post,
-              likes: hasLiked 
-                ? post.likes.filter((id: string) => id !== userId)
-                : [...post.likes, userId]
-            }
-          }
-          return post
-        })
+      const updatePagesInCache = (old: any) => {
+        if (!old?.pages) return old
+        
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            posts: page.posts.map((post: any) => {
+              if (post._id === postId) {
+                const userId = session?.user?.id
+                const hasLiked = post.likes.includes(userId)
+                return {
+                  ...post,
+                  likes: hasLiked 
+                    ? post.likes.filter((id: string) => id !== userId)
+                    : [...post.likes, userId]
+                }
+              }
+              return post
+            })
+          }))
+        }
+      }
 
-      queryClient.setQueryData(['posts'], updatePostsInCache)
+      queryClient.setQueryData(['posts'], updatePagesInCache)
       
       // Also update user's posts if on profile page
       if (session?.user?.username) {
         queryClient.setQueryData(
           ['user', session.user.username, 'posts'], 
-          (old: any) => old?.posts ? {
-            ...old,
-            posts: updatePostsInCache(old.posts)
-          } : old
+          updatePagesInCache
         )
       }
       
@@ -146,24 +152,32 @@ export function usePostMutations(session: Session | null) {
     },
     onSuccess: (updatedPost) => {
       // Update the main posts cache
-      queryClient.setQueryData(['posts'], (oldPosts: any) => 
-        oldPosts?.map((post: any) => {
-          // If this is the main post that was updated
-          if (post._id === updatedPost._id) {
-            return updatedPost
-          }
-          // If this post contains the reply that was updated
-          if (post.replies?.some((reply: { _id: string }) => reply._id === updatedPost._id)) {
-            return {
-              ...post,
-              replies: post.replies.map((reply: { _id: string }) => 
-                reply._id === updatedPost._id ? updatedPost : reply
-              )
-            }
-          }
-          return post
-        })
-      )
+      queryClient.setQueryData(['posts'], (oldData: any) => {
+        if (!oldData?.pages) return oldData
+        
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            posts: page.posts.map((post: any) => {
+              // If this is the main post that was updated
+              if (post._id === updatedPost._id) {
+                return updatedPost
+              }
+              // If this post contains the reply that was updated
+              if (post.replies?.some((reply: { _id: string }) => reply._id === updatedPost._id)) {
+                return {
+                  ...post,
+                  replies: post.replies.map((reply: { _id: string }) => 
+                    reply._id === updatedPost._id ? updatedPost : reply
+                  )
+                }
+              }
+              return post
+            })
+          }))
+        }
+      })
 
       // Update all reply caches that might contain this post
       queryClient.getQueriesData({ queryKey: ['replies'] }).forEach(([queryKey]) => {
@@ -190,24 +204,58 @@ export function usePostMutations(session: Session | null) {
     onSuccess: async (comment, { postId }) => {
       // Update comments cache with the full comment object
       queryClient.setQueryData(['comments', postId], (oldComments: any[] = []) => {
-        // Filter out any string IDs and add the new comment
         const validComments = oldComments.filter(c => typeof c === 'object' && c !== null)
         return [...validComments, comment]
       })
 
       // Update post's comment count in posts cache
-      queryClient.setQueryData(['posts'], (oldPosts: any) => 
-        oldPosts?.map((post: any) => 
-          post._id === postId 
-            ? { 
-                ...post, 
-                comments: Array.isArray(post.comments) 
-                  ? [...post.comments, comment]
-                  : [comment]
-              }
-            : post
+      queryClient.setQueryData(['posts'], (oldData: any) => {
+        if (!oldData?.pages) return oldData
+        
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            posts: page.posts.map((post: any) => 
+              post._id === postId 
+                ? { 
+                    ...post, 
+                    comments: Array.isArray(post.comments) 
+                      ? [...post.comments, comment]
+                      : [comment]
+                  }
+                : post
+            )
+          }))
+        }
+      })
+
+      // Also update user posts if we're on a profile page
+      if (session?.user?.username) {
+        queryClient.setQueryData(
+          ['user', session.user.username, 'posts'],
+          (oldData: any) => {
+            if (!oldData?.pages) return oldData
+            
+            return {
+              ...oldData,
+              pages: oldData.pages.map((page: any) => ({
+                ...page,
+                posts: page.posts.map((post: any) => 
+                  post._id === postId 
+                    ? { 
+                        ...post, 
+                        comments: Array.isArray(post.comments) 
+                          ? [...post.comments, comment]
+                          : [comment]
+                      }
+                    : post
+                )
+              }))
+            }
+          }
         )
-      )
+      }
 
       // Invalidate queries to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ['comments', postId] })
