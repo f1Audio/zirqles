@@ -103,22 +103,22 @@ export function ChatPageComponent() {
   }
 
   return (
-    <div className="min-h-screen flex items-start justify-center bg-gray-900 md:items-center md:p-4 md:pt-24">
-      <div className="w-full max-w-7xl h-[calc(100vh-9rem)] mt-20 mb-8 md:mt-0 md:h-[calc(100vh-12rem)] md:mx-auto">
-        <div className="bg-gray-800/50 backdrop-blur-xl border-cyan-500/30 overflow-hidden md:rounded-2xl h-full">
+    <div className="min-h-screen flex items-start justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="w-full h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] mt-16 lg:max-w-7xl lg:h-[calc(100vh-12rem)] lg:mt-20 lg:mb-8 lg:mx-auto lg:p-4">
+        <div className="bg-gray-800/50 backdrop-blur-xl border-0 lg:border lg:border-cyan-500/30 overflow-hidden h-full lg:rounded-2xl">
           <div className="h-full flex flex-col">
             <Chat client={client} theme="str-chat__theme-dark">
               <div className="flex h-full relative overflow-hidden">
                 {/* Channel List Sidebar */}
                 <div className={`
-                  md:w-64 md:block md:border-r md:border-gray-800
+                  lg:w-64 lg:block lg:border-r lg:border-cyan-500/30
                   ${showMobileChat ? 'hidden' : 'w-full'} 
                   transition-all duration-300 ease-in-out
-                  bg-gray-900 md:bg-transparent
+                  bg-gray-900/50 lg:bg-transparent
                 `}>
-                  <div className="p-4 border-b border-gray-800">
+                  <div className="p-4 border-b border-cyan-500/30">
                     <div className="flex items-center justify-between">
-                      <h2 className="text-lg font-semibold text-gray-100">Messages</h2>
+                      <h2 className="text-lg font-semibold text-cyan-300">Messages</h2>
                       <Button
                         onClick={() => setIsSearchOpen(true)}
                         className="h-8 w-8 p-0 rounded-full bg-cyan-600 hover:bg-cyan-500"
@@ -142,7 +142,7 @@ export function ChatPageComponent() {
                         <div 
                           className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
                             previewProps.channel?.id === activeChannel?.id 
-                              ? 'md:bg-cyan-900/40 md:hover:bg-cyan-900/50' 
+                              ? 'lg:bg-cyan-900/40 lg:hover:bg-cyan-900/50' 
                               : 'hover:bg-gray-800'
                           }`}
                           onClick={() => {
@@ -197,22 +197,22 @@ export function ChatPageComponent() {
 
                 {/* Chat Area */}
                 <div className={`
-                  md:flex-1 md:block
+                  lg:flex-1 lg:block
                   w-full h-full
-                  ${!showMobileChat ? 'translate-x-full md:translate-x-0' : 'translate-x-0'} 
+                  ${!showMobileChat ? 'translate-x-full lg:translate-x-0' : 'translate-x-0'} 
                   transition-transform duration-300 ease-in-out
-                  absolute md:relative left-0 top-0
-                  bg-gray-900 md:bg-transparent
+                  absolute lg:relative left-0 top-0
+                  bg-gray-900/50 lg:bg-transparent
                 `}>
                   {activeChannel ? (
                     <Channel EmojiPicker={EmojiPicker} channel={activeChannel}>
                       <Window>
-                        <div className="md:hidden p-2 border-b border-gray-800">
+                        <div className="lg:hidden p-2 border-b border-cyan-500/30">
                           <Button
                             onClick={handleBackToList}
                             variant="ghost"
                             size="sm"
-                            className="text-cyan-400"
+                            className="text-cyan-400 hover:text-cyan-300"
                           >
                             <ChevronLeft className="h-5 w-5 mr-2" />
                             Back to Messages
@@ -225,7 +225,7 @@ export function ChatPageComponent() {
                       <Thread />
                     </Channel>
                   ) : (
-                    <div className="h-full flex items-center justify-center text-gray-400">
+                    <div className="h-full flex items-center justify-center text-cyan-400">
                       Select a conversation or start a new one
                     </div>
                   )}
