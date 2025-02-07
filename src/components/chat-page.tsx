@@ -151,8 +151,8 @@ export function ChatPageComponent() {
                             }
                           }}
                         >
-                          <div className="flex items-center gap-3">
-                            <Avatar className={`h-10 w-10 border ${
+                          <div className="flex items-center gap-3 max-w-full">
+                            <Avatar className={`flex-shrink-0 h-10 w-10 border ${
                               hasUnread ? 'border-cyan-500' : 'border-gray-700'
                             }`}>
                               <AvatarImage src={otherUser?.image} />
@@ -164,7 +164,9 @@ export function ChatPageComponent() {
                               <div className={`font-medium truncate ${
                                 hasUnread ? 'text-cyan-300' : 'text-gray-200'
                               }`}>
-                                {otherUser?.name || 'Unknown User'}
+                                <span className="break-all line-clamp-1">
+                                  {otherUser?.name || 'Unknown User'}
+                                </span>
                               </div>
                               {previewProps.lastMessage && typeof previewProps.lastMessage === 'object' && (
                                 <div className={`text-sm truncate ${

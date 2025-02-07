@@ -115,7 +115,7 @@ export function SearchDialog({ open, onOpenChange, onUserSelect }: SearchDialogP
                     <li
                       key={user.username}
                       onClick={() => handleUserClick(user.username)}
-                      className="flex items-center space-x-3 text-cyan-100 hover:text-cyan-300 cursor-pointer transition-colors p-1 rounded-xl hover:bg-cyan-900/20"
+                      className="flex items-center space-x-3 text-cyan-100 hover:text-cyan-300 cursor-pointer transition-colors p-1 rounded-xl hover:bg-cyan-900/20 max-w-full"
                     >
                       <Avatar className="h-8 w-8 ring-2 ring-cyan-500 ring-offset-2 ring-offset-gray-900 flex-shrink-0">
                         <AvatarImage 
@@ -126,7 +126,7 @@ export function SearchDialog({ open, onOpenChange, onUserSelect }: SearchDialogP
                           {user.username.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm font-medium">@{user.username}</span>
+                      <span className="text-sm font-medium truncate break-all">@{user.username}</span>
                     </li>
                   ))}
                 </ul>

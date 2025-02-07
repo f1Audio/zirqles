@@ -134,6 +134,23 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     enabled: !!username
   })
 
+  const [isUsernameLong, setIsUsernameLong] = useState(false)
+  const usernameRef = useRef<HTMLParagraphElement>(null)
+
+  useEffect(() => {
+    const checkUsernameLength = () => {
+      if (usernameRef.current) {
+        const usernameWidth = usernameRef.current.scrollWidth
+        const containerWidth = usernameRef.current.offsetWidth
+        setIsUsernameLong(usernameWidth > containerWidth)
+      }
+    }
+
+    checkUsernameLength()
+    window.addEventListener('resize', checkUsernameLength)
+    return () => window.removeEventListener('resize', checkUsernameLength)
+  }, [username])
+
   useEffect(() => {
     const handleScroll = () => {
       if (scrollRef.current) {
@@ -307,69 +324,29 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
           <div className="container mx-auto px-4">
             <div className="max-w-2xl mx-auto pt-8 pb-20 md:pb-8">
               {/* Profile Header with Avatar */}
-              <div className="flex flex-col gap-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex gap-8">
-                    {avatarSection}
-                    <div className="flex flex-col justify-center">
-                      <h2 className="font-bold text-2xl mb-1">
-                        {displayName}
-                      </h2>
-                      <p className="text-cyan-500 text-lg">
-                        @{username.toLowerCase()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {isOwnProfile ? (
-                      <Link href="/settings">
-                        <Button
-                          className="rounded-full bg-gray-800 hover:bg-gray-700 text-cyan-300 hover:text-cyan-200 border border-gray-700"
-                          size="sm"
-                        >
-                          <Settings className="h-4 w-4" />
-                          <span className="ml-2 hidden md:inline">Edit Profile</span>
-                        </Button>
-                      </Link>
-                    ) : (
-                      <>
-                        <Button 
-                          onClick={handleMessage}
-                          className="rounded-full bg-gray-800/80 hover:bg-gray-700 text-cyan-300 hover:text-cyan-200"
-                          size="sm"
-                        >
-                          <Mail className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          onClick={handleFollow}
-                          disabled={followUser.isPending}
-                          className={`rounded-full ${
-                            userData?.isFollowing
-                              ? 'bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-gray-200 border border-gray-700'
-                              : 'bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400'
-                          } text-white font-medium px-4`}
-                          size="sm"
-                        >
-                          {followUser.isPending ? (
-                            <span className="flex items-center">
-                              <LoadingSpinner className="w-4 h-4 mr-2" />
-                              {userData?.isFollowing ? 'Unfollowing...' : 'Following...'}
-                            </span>
-                          ) : (
-                            userData?.isFollowing ? 'Following' : 'Follow'
-                          )}
-                        </Button>
-                      </>
-                    )}
+              <div className="flex flex-col gap-6">
+                {/* Avatar and Name Section */}
+                <div className="flex flex-col items-center text-center">
+                  {avatarSection}
+                  <div className="mt-4">
+                    <h2 className="font-bold text-lg lg:text-2xl mb-1">
+                      {displayName}
+                    </h2>
+                    <p className="text-cyan-500 text-sm lg:text-base">
+                      @{username.toLowerCase().slice(0, 30)}
+                    </p>
                   </div>
                 </div>
 
+                {/* Bio Section */}
                 {userData.bio && (
-                  <p className="text-sm text-cyan-100 whitespace-pre-wrap">{userData.bio}</p>
+                  <p className="text-sm text-cyan-100 whitespace-pre-wrap text-center max-w-md mx-auto">
+                    {userData.bio}
+                  </p>
                 )}
 
                 {/* User Metadata */}
-                <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-cyan-300/80">
+                <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm text-cyan-300/80">
                   {userData.location && (
                     <div className="flex items-center gap-1">
                       <MapPin className="h-4 w-4" />
@@ -396,7 +373,7 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                 </div>
 
                 {/* Following/Followers */}
-                <div className="flex gap-4 text-sm">
+                <div className="flex justify-center gap-6 text-sm">
                   <button
                     onClick={() => setListType('followers')}
                     className="hover:underline flex items-center gap-1"
@@ -415,6 +392,53 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                     </span>
                     <span className="text-cyan-500">Following</span>
                   </button>
+                </div>
+
+                {/* Action Buttons - Now at the bottom */}
+                <div className="flex justify-center gap-3 pt-2">
+                  {isOwnProfile ? (
+                    <Button
+                      className="rounded-full bg-gray-800/80 hover:bg-gray-700 text-cyan-300 hover:text-cyan-200 border border-gray-700 px-6"
+                      size="sm"
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      <span>Edit Profile</span>
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={handleFollow}
+                        disabled={followUser.isPending}
+                        className={`rounded-full px-6 ${
+                          userData?.isFollowing
+                            ? 'bg-gray-800/80 hover:bg-gray-700 text-gray-300 hover:text-gray-200 border border-gray-700'
+                            : 'bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white'
+                        }`}
+                        size="sm"
+                      >
+                        {followUser.isPending ? (
+                          <span className="flex items-center">
+                            <LoadingSpinner className="w-4 h-4 mr-2" />
+                            <span className="text-sm">
+                              {userData?.isFollowing ? 'Unfollowing...' : 'Following...'}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-sm">
+                            {userData?.isFollowing ? 'Following' : 'Follow'}
+                          </span>
+                        )}
+                      </Button>
+                      <Button 
+                        onClick={handleMessage}
+                        className="rounded-full bg-gray-800/80 hover:bg-gray-700 text-cyan-300 hover:text-cyan-200 px-6"
+                        size="sm"
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        <span>Message</span>
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 {/* User List Dialog */}

@@ -289,15 +289,15 @@ export function NotificationsPageComponent() {
                         !notification.read && "bg-cyan-900/20"
                       )}
                     >
-                      <div className="flex items-center space-x-4">
-                        <Avatar className="w-10 h-10 border-2 border-cyan-500 ring-2 ring-cyan-500/50">
+                      <div className="flex items-center space-x-4 max-w-full">
+                        <Avatar className="w-10 h-10 border-2 border-cyan-500 ring-2 ring-cyan-500/50 flex-shrink-0">
                           <AvatarImage src={notification.sender?.avatar} alt={notification.sender?.username} />
                           <AvatarFallback>{notification.sender?.username?.[0]?.toUpperCase()}</AvatarFallback>
                         </Avatar>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             {renderNotificationIcon(notification.type)}
-                            <p className="text-sm">
+                            <p className="text-sm break-words">
                               {renderNotificationContent(notification)}
                             </p>
                           </div>
@@ -311,7 +311,7 @@ export function NotificationsPageComponent() {
                               ? `/post/${notification.post.parentPost}`
                               : `/post/${notification.post?._id}`
                             }
-                            className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full"
+                            className="text-cyan-400/50 hover:text-cyan-400 transition-colors duration-200 bg-gray-800/70 p-2 rounded-full flex-shrink-0"
                           >
                             <ArrowRight className="h-4 w-4" />
                           </Link>
