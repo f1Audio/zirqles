@@ -81,7 +81,8 @@ export async function GET(
 
     return NextResponse.json({
       posts: formattedPosts,
-      nextPage: hasMore ? page + 1 : undefined
+      nextPage: hasMore ? page + 1 : undefined,
+      totalPosts
     })
   } catch (error) {
     console.error('Error fetching user posts:', error)

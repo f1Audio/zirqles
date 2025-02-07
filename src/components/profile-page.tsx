@@ -81,6 +81,7 @@ interface Comment {
   createdAt: string
 }
 
+
 function getUniquePostKey(post: any, pageIndex: number) {
   return `${post._id}-${pageIndex}`
 }
@@ -137,6 +138,9 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
   const [isUsernameLong, setIsUsernameLong] = useState(false)
   const usernameRef = useRef<HTMLParagraphElement>(null)
 
+  // Add a state to track total posts count
+  const [totalPosts, setTotalPosts] = useState(0)
+
   useEffect(() => {
     const checkUsernameLength = () => {
       if (usernameRef.current) {
@@ -170,6 +174,13 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
       fetchNextPage()
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  // Update the total posts count when data changes
+  useEffect(() => {
+    if (data?.pages[0]?.totalPosts) {
+      setTotalPosts(data.pages[0].totalPosts)
+    }
+  }, [data])
 
   const allPosts = data?.pages.flatMap(page => page.posts) || []
 
@@ -459,7 +470,7 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                     variant="ghost" 
                     className="relative text-cyan-300 rounded-none px-6 py-4 font-medium"
                   >
-                    Posts {userData?.posts?.length || 0}
+                    Posts {totalPosts}
                     <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-500" />
                   </Button>
                 </div>

@@ -23,6 +23,7 @@ interface Post {
 interface PaginatedResponse {
   posts: Post[]
   nextPage?: number
+  totalPosts: number
 }
 
 export function useComments(postId: string | null) {
