@@ -409,11 +409,12 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                 <div className="flex justify-center gap-3 pt-2">
                   {isOwnProfile ? (
                     <Button
+                      onClick={() => router.push('/settings')}
                       className="rounded-full bg-gray-800/80 hover:bg-gray-700 text-cyan-300 hover:text-cyan-200 border border-gray-700 px-6"
                       size="sm"
                     >
-                      <Settings className="h-4 w-4 mr-2" />
-                      <span>Edit Profile</span>
+
+                      Edit Profile
                     </Button>
                   ) : (
                     <>
