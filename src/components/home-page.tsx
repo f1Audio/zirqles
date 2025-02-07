@@ -11,10 +11,17 @@ import { SearchDialog } from './layout/search-dialog'
 import { Post } from './post'
 import { PostComposer } from './post-composer'
 import { LoadingSpinner } from './ui/loading-spinner'
+import { InfiniteScrollSpinner } from './ui/infinite-scroll-spinner'
 import { toast } from 'sonner'
+import { useInView } from 'react-intersection-observer'
+import React from 'react'
 
 interface CommentState {
   [key: string]: string
+}
+
+function getUniquePostKey(post: any, pageIndex: number) {
+  return `${post._id}-${pageIndex}`
 }
 
 export function HomePageComponent() {
@@ -30,7 +37,13 @@ export function HomePageComponent() {
   const [commentContent, setCommentContent] = useState<CommentState>({})
 
   // Queries & Mutations
-  const { data: posts = [], isLoading: postsLoading } = usePosts()
+  const { ref, inView } = useInView()
+  const { 
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = usePosts()
   const { data: comments = [] } = useComments(expandedPost)
   const { createPost, likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
 
@@ -47,19 +60,27 @@ export function HomePageComponent() {
 
   // Add debug logging
   useEffect(() => {
-    console.log('Posts in component:', posts)
-  }, [posts])
+    console.log('Posts in component:', data)
+  }, [data])
 
   // Use userData instead of session user data
   useEffect(() => {
     console.log('Posts data:', {
-      postsLength: posts?.length || 0,
-      firstPost: posts?.[0],
-      isLoading: postsLoading,
+      postsLength: data?.pages.flatMap(page => page.posts)?.length || 0,
+      firstPost: data?.pages.flatMap(page => page.posts)?.[0],
+      isLoading: isFetchingNextPage,
       sessionStatus: session ? 'authenticated' : 'unauthenticated',
       currentUser: userData?.username // Use userData here
     })
-  }, [posts, postsLoading, session, userData])
+  }, [data, isFetchingNextPage, session, userData])
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage()
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  const allPosts = data?.pages.flatMap(page => page.posts) || []
 
   // Event Handlers
   const handlePost = async (media?: { type: string; url: string; key: string }[]) => {
@@ -70,7 +91,7 @@ export function HomePageComponent() {
 
     const payload = {
       content: newPost,
-      media: media || [] // Ensure media is always an array
+      media: media || []
     }
 
     try {
@@ -87,8 +108,20 @@ export function HomePageComponent() {
 
       const newPostData = await response.json()
       
-      // Update the posts cache optimistically
-      queryClient.setQueryData(['posts'], (old: any[] = []) => [newPostData, ...old])
+      // Update the posts cache with infinite query structure
+      queryClient.setQueryData(['posts'], (old: any) => {
+        if (!old?.pages) return old
+        return {
+          ...old,
+          pages: [
+            {
+              ...old.pages[0],
+              posts: [newPostData, ...(old.pages[0].posts || [])]
+            },
+            ...old.pages.slice(1)
+          ]
+        }
+      })
       
       // Clear the form
       setNewPost('')
@@ -149,7 +182,7 @@ export function HomePageComponent() {
     }
   }
 
-  if (postsLoading) {
+  if (!data) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-cyan-300 font-mono">
         <Navbar onSearchOpen={() => setIsSearchOpen(true)} />
@@ -187,7 +220,7 @@ export function HomePageComponent() {
 
               {/* Posts Feed */}
               <div className="pt-4">
-                {posts.length === 0 ? (
+                {allPosts.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-cyan-300 mb-2">No posts to show</p>
                     <p className="text-cyan-500 text-sm">
@@ -196,29 +229,37 @@ export function HomePageComponent() {
                   </div>
                 ) : (
                   <>
-                    {/* Add debug info */}
                     <div className="text-xs text-cyan-500 mb-2">
-                      Showing {posts.length} posts
+                      Showing {allPosts.length} posts
                     </div>
-                    {posts.map((post: any) => (
-                      <Post
-                        key={post._id}
-                        post={post}
-                        isExpanded={expandedPost === post._id}
-                        onExpand={setExpandedPost}
-                        onInteraction={handleInteraction}
-                        commentContent={commentContent[post._id] || ''}
-                        onCommentChange={(content) => setCommentContent(prev => ({
-                          ...prev,
-                          [post._id]: content
-                        }))}
-                        showComments={expandedPost === post._id}
-                        comments={expandedPost === post._id ? comments : []}
-                        onDelete={handleDelete}
-                      />
+                    {data?.pages.map((page, pageIndex) => (
+                      <React.Fragment key={pageIndex}>
+                        {page.posts.map((post: any) => (
+                          <Post
+                            key={getUniquePostKey(post, pageIndex)}
+                            post={post}
+                            isExpanded={expandedPost === post._id}
+                            onExpand={setExpandedPost}
+                            onInteraction={handleInteraction}
+                            commentContent={commentContent[post._id] || ''}
+                            onCommentChange={(content) => setCommentContent(prev => ({
+                              ...prev,
+                              [post._id]: content
+                            }))}
+                            showComments={expandedPost === post._id}
+                            comments={expandedPost === post._id ? comments : []}
+                            onDelete={handleDelete}
+                          />
+                        ))}
+                      </React.Fragment>
                     ))}
                   </>
                 )}
+                
+                {/* Loading trigger */}
+                <div ref={ref}>
+                  {isFetchingNextPage && <InfiniteScrollSpinner />}
+                </div>
               </div>
             </div>
           </div>

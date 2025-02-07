@@ -10,6 +10,11 @@ export async function GET(
   { params }: { params: { username: string } }
 ) {
   try {
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const skip = (page - 1) * limit
+
     await dbConnect()
     
     const user = await User.findOne({ username: params.username })
@@ -34,7 +39,15 @@ export async function GET(
         ]
       })
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .lean()
+
+    const totalPosts = await Post.countDocuments({ 
+      author: user._id,
+      type: 'post'
+    })
+    const hasMore = totalPosts > skip + posts.length
 
     const formattedPosts = posts.map((post: any) => ({
       _id: post._id.toString(),
@@ -66,7 +79,10 @@ export async function GET(
       createdAt: post.createdAt
     }))
 
-    return NextResponse.json({ posts: formattedPosts })
+    return NextResponse.json({
+      posts: formattedPosts,
+      nextPage: hasMore ? page + 1 : undefined
+    })
   } catch (error) {
     console.error('Error fetching user posts:', error)
     return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 })

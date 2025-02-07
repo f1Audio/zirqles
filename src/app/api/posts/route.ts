@@ -8,7 +8,7 @@ import mongoose from 'mongoose'
 import { Notification } from '@/models/notification'
 import { formatTextWithMentions } from '@/lib/utils'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
@@ -16,52 +16,36 @@ export async function GET() {
     }
 
     await dbConnect()
-
+    
+    // Get current user and their following list
     const currentUser = await User.findById(session.user.id)
     if (!currentUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Debug logs
-    console.log('Current user:', currentUser._id)
-    console.log('Following:', currentUser.following?.length || 0, 'users')
-    console.log('Following IDs:', currentUser.following)
+    const { searchParams } = new URL(request.url)
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '10')
+    const skip = (page - 1) * limit
 
-    // Get all users that the current user follows and ensure they're ObjectIds
-    const followedUsers = (currentUser.following || []).map(id => 
-      typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id
-    )
-
-    // Log the query we're about to execute
+    // Create query to get posts from followed users and own posts
     const query = {
       $and: [
         { type: 'post' },
         {
           $or: [
-            { author: new mongoose.Types.ObjectId(currentUser._id.toString()) },
-            { author: { 
-              $in: followedUsers.map(id => new mongoose.Types.ObjectId(id.toString())) 
-            } }
+            { author: currentUser._id }, // Own posts
+            { author: { $in: currentUser.following || [] } } // Posts from followed users
           ]
         }
       ]
     }
-    console.log('MongoDB query:', JSON.stringify(query, null, 2))
-
-    // Execute query and log results before processing
-    const rawPosts = await Post.find(query).lean()
-    console.log('Raw posts count:', rawPosts.length)
-    console.log('Posts by author:', rawPosts.reduce((acc: { [key: string]: number }, post) => {
-      const authorId = post.author.toString()
-      acc[authorId] = (acc[authorId] || 0) + 1
-      return acc
-    }, {}))
 
     const posts = await Post.find(query)
-      .populate({
-        path: 'author',
-        select: '_id username avatar'
-      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('author', 'username avatar')
       .populate('likes', '_id')
       .populate('reposts', '_id')
       .populate({
@@ -83,11 +67,10 @@ export async function GET() {
         select: 'content author likes reposts comments type depth media createdAt'
       })
       .select('content author likes reposts comments type depth media createdAt updatedAt')
-      .sort({ createdAt: -1 })
       .lean()
 
-    console.log('Final posts count:', posts.length)
-    console.log('Author IDs in final posts:', posts.map(p => p.author._id.toString()))
+    const totalPosts = await Post.countDocuments(query)
+    const hasMore = totalPosts > skip + posts.length
 
     const formattedPosts = posts.map((post: any) => ({
       _id: post._id.toString(),
@@ -135,7 +118,10 @@ export async function GET() {
       updatedAt: post.updatedAt
     }))
 
-    return NextResponse.json(formattedPosts)
+    return NextResponse.json({
+      posts: formattedPosts,
+      nextPage: hasMore ? page + 1 : undefined
+    })
   } catch (error) {
     console.error('Error fetching posts:', error)
     return NextResponse.json({ error: 'Failed to fetch posts' }, { status: 500 })

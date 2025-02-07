@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQueryClient } from '@tanstack/react-query'
-import { usePosts, useComments, usePostMutations, useUserMutations } from '@/queries/posts'
+import { usePosts, useComments, usePostMutations, useUserMutations, useUserPosts } from '@/queries/posts'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { MessageCircle, Repeat2, Heart, Share, UserPlus, Mail, MapPin, Calendar, Link as LinkIcon, ArrowLeft, Settings } from 'lucide-react'
@@ -16,6 +16,9 @@ import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { UserListDialog } from './user-list-dialog'
 import { useStreamChat } from '@/contexts/StreamChatContext'
+import { useInView } from 'react-intersection-observer'
+import { InfiniteScrollSpinner } from './ui/infinite-scroll-spinner'
+import React from 'react'
 
 interface ProfilePageProps {
   username: string
@@ -78,6 +81,10 @@ interface Comment {
   createdAt: string
 }
 
+function getUniquePostKey(post: any, pageIndex: number) {
+  return `${post._id}-${pageIndex}`
+}
+
 export function ProfilePageComponent({ username }: ProfilePageProps) {
   const { data: session } = useSession()
   const queryClient = useQueryClient()
@@ -92,6 +99,14 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
   const { data: comments = [] } = useComments(expandedPost)
   const [listType, setListType] = useState<'followers' | 'following' | null>(null)
   const { createChat, setActiveChannel } = useStreamChat()
+  const { ref, inView } = useInView()
+  
+  const { 
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useUserPosts(username)
 
   const { data: currentUser } = useQuery({
     queryKey: ['user'],
@@ -119,21 +134,6 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     enabled: !!username
   })
 
-  const { data: userPosts = [] } = useQuery({
-    queryKey: ['user', username, 'posts'],
-    queryFn: async () => {
-      const response = await fetch(`/api/users/${username}/posts`)
-      if (!response.ok) throw new Error('Failed to fetch posts')
-      const data = await response.json()
-      return Array.isArray(data.posts) ? data.posts : []
-    },
-    enabled: !!username,
-    select: (data) => {
-      if (!Array.isArray(data)) return []
-      return data
-    }
-  })
-
   useEffect(() => {
     const handleScroll = () => {
       if (scrollRef.current) {
@@ -147,6 +147,14 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
       return () => currentRef.removeEventListener('scroll', handleScroll)
     }
   }, [])
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage()
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  const allPosts = data?.pages.flatMap(page => page.posts) || []
 
   const handleFollow = async () => {
     if (!session) {
@@ -427,7 +435,7 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                     variant="ghost" 
                     className="relative text-cyan-300 rounded-none px-6 py-4 font-medium"
                   >
-                    Posts {userPosts.length}
+                    Posts {userData?.posts?.length || 0}
                     <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-500" />
                   </Button>
                 </div>
@@ -435,37 +443,32 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
 
               {/* Posts Feed */}
               <div className="py-4">
-                {Array.isArray(userPosts) && userPosts.map((post: any) => (
-                  <Post
-                    key={post._id}
-                    post={{
-                      _id: post._id,
-                      content: post.content,
-                      author: {
-                        _id: post.author._id,
-                        username: post.author.username,
-                        avatar: post.author.avatar || ''
-                      },
-                      likes: post.likes || [],
-                      reposts: post.reposts || [],
-                      comments: post.comments || [],
-                      type: post.type || 'post',
-                      createdAt: post.createdAt,
-                      media: post.media || []
-                    }}
-                    isExpanded={expandedPost === post._id}
-                    onExpand={setExpandedPost}
-                    onInteraction={handleInteraction}
-                    commentContent={commentContent[post._id] || ''}
-                    onCommentChange={(content: string) => setCommentContent(prev => ({
-                      ...prev,
-                      [post._id]: content
-                    }))}
-                    showComments={expandedPost === post._id}
-                    comments={expandedPost === post._id ? comments : []}
-                    onDelete={handleDelete}
-                  />
+                {data?.pages.map((page, pageIndex) => (
+                  <React.Fragment key={pageIndex}>
+                    {page.posts.map((post: any) => (
+                      <Post
+                        key={getUniquePostKey(post, pageIndex)}
+                        post={post}
+                        isExpanded={expandedPost === post._id}
+                        onExpand={setExpandedPost}
+                        onInteraction={handleInteraction}
+                        commentContent={commentContent[post._id] || ''}
+                        onCommentChange={(content: string) => setCommentContent(prev => ({
+                          ...prev,
+                          [post._id]: content
+                        }))}
+                        showComments={expandedPost === post._id}
+                        comments={expandedPost === post._id ? comments : []}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                  </React.Fragment>
                 ))}
+                
+                {/* Loading trigger */}
+                <div ref={ref}>
+                  {isFetchingNextPage && <InfiniteScrollSpinner />}
+                </div>
               </div>
             </div>
           </div>

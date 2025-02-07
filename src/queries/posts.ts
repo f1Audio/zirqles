@@ -1,8 +1,29 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import { Session } from 'next-auth'
 import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
 import { createNotification } from '@/lib/notifications'
+
+interface Post {
+  _id: string
+  content: string
+  author: {
+    _id: string
+    username: string
+    avatar?: string
+  }
+  likes: string[]
+  reposts: string[]
+  comments: any[]
+  type: 'post' | 'comment'
+  createdAt: string
+  media?: Array<{ type: string; url: string; key: string }>
+}
+
+interface PaginatedResponse {
+  posts: Post[]
+  nextPage?: number
+}
 
 export function useComments(postId: string | null) {
   return useQuery({
@@ -21,44 +42,19 @@ export function useComments(postId: string | null) {
 export function usePosts() {
   const { data: session } = useSession()
   
-  return useQuery({
+  return useInfiniteQuery<PaginatedResponse>({
     queryKey: ['posts'],
-    queryFn: async () => {
-      const response = await fetch('/api/posts')
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await fetch(`/api/posts?page=${pageParam}&limit=10`)
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Unauthorized')
-        }
+        if (response.status === 401) throw new Error('Unauthorized')
         throw new Error('Failed to fetch posts')
       }
-      const data = await response.json()
-      
-      // Add debug logging
-      console.log('API Response:', data)
-      
-      // Handle the response data
-      const postsArray = Array.isArray(data) ? data : data.posts || []
-      
-      return postsArray.map((post: any) => ({
-        _id: post._id,
-        content: post.content,
-        author: {
-          _id: post.author._id,
-          username: post.author.username,
-          avatar: post.author.avatar
-        },
-        likes: post.likes || [],
-        reposts: post.reposts || [],
-        comments: post.comments || [],
-        type: post.type || 'post',
-        depth: post.depth || 0,
-        createdAt: post.createdAt,
-        media: post.media || []
-      }))
+      return response.json()
     },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 1,
     enabled: !!session,
-    staleTime: 1000 * 60,
-    refetchOnWindowFocus: true
   })
 }
 
@@ -224,13 +220,10 @@ export function usePostMutations(session: Session | null) {
         method: 'DELETE'
       })
       if (!response.ok) throw new Error('Failed to delete post')
-      const data = await response.json()
-      return { postId, type: data.type }
+      return response.json()
     },
     onMutate: async (postId) => {
-      // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['posts'] })
-      await queryClient.cancelQueries({ queryKey: ['comments'] })
       if (session?.user?.username) {
         await queryClient.cancelQueries({ 
           queryKey: ['user', session.user.username, 'posts'] 
@@ -238,69 +231,39 @@ export function usePostMutations(session: Session | null) {
       }
 
       // Get current posts
-      const previousPosts = queryClient.getQueryData(['posts']) as any[]
+      const previousPosts = queryClient.getQueryData(['posts'])
       const previousUserPosts = session?.user?.username ? 
         queryClient.getQueryData(['user', session.user.username, 'posts']) 
         : undefined
 
-      // Find the item and check its type
-      const itemToDelete = previousPosts?.find(post => post._id === postId) || 
-                          previousPosts?.flatMap(post => post.comments || [])
-                                      .find((comment: any) => comment._id === postId)
-      const isComment = itemToDelete?.type === 'comment'
-
-      if (isComment) {
-        // Update both caches for comments
-        queryClient.setQueryData(['comments'], (old: any[] = []) => 
-          old.filter(comment => comment._id !== postId)
-        )
-
-        // Update posts cache
-        queryClient.setQueryData(['posts'], (old: any[]) => 
-          old?.map(post => ({
-            ...post,
-            comments: post.comments?.filter((comment: any) => comment._id !== postId) || []
+      // Update posts cache
+      const updatePagesInCache = (old: any) => {
+        if (!old?.pages) return old
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            posts: page.posts.filter((post: any) => post._id !== postId)
           }))
-        )
-      } else {
-        // If it's a post, remove it from the posts array
-        queryClient.setQueryData(['posts'], (old: any[]) => 
-          old?.filter(post => post._id !== postId)
-        )
+        }
       }
+
+      queryClient.setQueryData(['posts'], updatePagesInCache)
       
-      // Also update user's posts if on profile page
       if (session?.user?.username) {
         queryClient.setQueryData(
-          ['user', session.user.username, 'posts'], 
-          (old: any) => {
-            if (!old?.posts) return old
-            if (isComment) {
-              return {
-                ...old,
-                posts: old.posts.map((post: any) => ({
-                  ...post,
-                  comments: post.comments?.filter((comment: any) => comment._id !== postId) || []
-                }))
-              }
-            } else {
-              return {
-                ...old,
-                posts: old.posts.filter((post: any) => post._id !== postId)
-              }
-            }
-          }
+          ['user', session.user.username, 'posts'],
+          updatePagesInCache
         )
       }
 
       return { previousPosts, previousUserPosts }
     },
     onError: (err, postId, context) => {
-      // Rollback on error
       queryClient.setQueryData(['posts'], context?.previousPosts)
       if (session?.user?.username) {
         queryClient.setQueryData(
-          ['user', session.user.username, 'posts'], 
+          ['user', session.user.username, 'posts'],
           context?.previousUserPosts
         )
       }
@@ -308,13 +271,11 @@ export function usePostMutations(session: Session | null) {
     },
     onSuccess: (data) => {
       toast.success(data.type === 'comment' ? 'Comment deleted successfully' : 'Post deleted successfully')
-
-      // Refetch to ensure cache is in sync
       queryClient.invalidateQueries({ queryKey: ['posts'] })
       queryClient.invalidateQueries({ queryKey: ['comments'] })
       if (session?.user?.username) {
         queryClient.invalidateQueries({ 
-          queryKey: ['user', session.user.username, 'posts'] 
+          queryKey: ['user', session.user.username, 'posts']
         })
       }
     }
@@ -331,15 +292,36 @@ export function usePostMutations(session: Session | null) {
       return response.json()
     },
     onSuccess: (newPost) => {
-      // Update main posts feed
-      queryClient.setQueryData(['posts'], (old: any[] = []) => [newPost, ...old])
+      // Update main posts feed with infinite query structure
+      queryClient.setQueryData(['posts'], (old: any) => {
+        if (!old?.pages) return old
+        return {
+          ...old,
+          pages: [
+            {
+              ...old.pages[0],
+              posts: [newPost, ...(old.pages[0].posts || [])]
+            },
+            ...old.pages.slice(1)
+          ]
+        }
+      })
       
       // Update profile posts if available
       if (session?.user?.username) {
-        queryClient.setQueryData(
-          ['user', session.user.username, 'posts'], 
-          (old: any[] = []) => [newPost, ...old]
-        )
+        queryClient.setQueryData(['user', session.user.username, 'posts'], (old: any) => {
+          if (!old?.pages) return old
+          return {
+            ...old,
+            pages: [
+              {
+                ...old.pages[0],
+                posts: [newPost, ...(old.pages[0].posts || [])]
+              },
+              ...old.pages.slice(1)
+            ]
+          }
+        })
       }
     }
   })
@@ -433,4 +415,18 @@ export function useUserMutations(session: Session | null) {
   })
 
   return { followUser }
+}
+
+export function useUserPosts(username: string) {
+  return useInfiniteQuery<PaginatedResponse>({
+    queryKey: ['user', username, 'posts'],
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await fetch(`/api/users/${username}/posts?page=${pageParam}&limit=10`)
+      if (!response.ok) throw new Error('Failed to fetch posts')
+      return response.json()
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 1,
+    enabled: !!username,
+  })
 } 
