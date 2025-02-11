@@ -121,7 +121,7 @@ export function AuthPageComponent() {
           // Automatically sign in after successful registration
           const result = await signIn('credentials', {
             redirect: false,
-            email,
+            username,
             password,
           })
 
