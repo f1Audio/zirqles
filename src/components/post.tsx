@@ -392,6 +392,7 @@ export function Post({
             setIsHovered(false)
           }
         }}
+        onTouchStart={() => setIsHovered(true)}
       >
         <Link href={`/user/${post.author.username}`} className="flex-shrink-0">
           <Avatar className="h-8 w-8 ring-2 ring-cyan-500/30 ring-offset-1 ring-offset-gray-900">
@@ -455,7 +456,7 @@ export function Post({
                   </p>
                 )}
                 
-                {(session?.user?.id === post.author._id && (isHovered || isDropdownOpen)) && (
+                {(session?.user?.id === post.author._id && (isHovered || isDropdownOpen || window?.matchMedia('(max-width: 768px)').matches)) && (
                   <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
                     <DropdownMenuTrigger className="text-gray-400 hover:text-gray-300 transition-colors duration-200">
                       <MoreHorizontal className="h-3 w-3" />
