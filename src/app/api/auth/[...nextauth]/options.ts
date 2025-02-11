@@ -39,25 +39,39 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "text" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null
+        if (!credentials?.username || !credentials?.password) {
+          return null
+        }
 
-        await dbConnect()
-        const user = await User.findOne({ email: credentials.email })
-        if (!user) return null
+        try {
+          await dbConnect()
+          
+          // Find user by username instead of email
+          const user = await User.findOne({ username: credentials.username })
+          
+          if (!user) {
+            return null
+          }
 
-        const isPasswordCorrect = await bcrypt.compare(credentials.password, user.password)
-        if (!isPasswordCorrect) return null
+          const isPasswordValid = await bcrypt.compare(credentials.password, user.password)
+          
+          if (!isPasswordValid) {
+            return null
+          }
 
-        return { 
-          id: user._id.toString(), 
-          email: user.email, 
-          username: user.username,
-          avatar: user.avatar,
-          image: user.avatar
+          return {
+            id: user._id.toString(),
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar,
+          }
+        } catch (error) {
+          console.error('Auth error:', error)
+          return null
         }
       }
     }),

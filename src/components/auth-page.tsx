@@ -67,7 +67,7 @@ export function AuthPageComponent() {
       if (mode === 'login') {
         const result = await signIn('credentials', {
           redirect: false,
-          email,
+          username,
           password,
         })
 
@@ -173,17 +173,17 @@ export function AuthPageComponent() {
                 <form onSubmit={(e) => onSubmit(e, 'login')}>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="flex items-center space-x-2 text-cyan-300">
-                        <Icons.mail className="w-4 h-4" />
-                        <span>Email</span>
+                      <Label htmlFor="username" className="flex items-center space-x-2 text-cyan-300">
+                        <Icons.user className="w-4 h-4" />
+                        <span>Username</span>
                       </Label>
                       <Input 
-                        id="email" 
-                        placeholder="email@example.com" 
+                        id="username" 
+                        placeholder="Username" 
                         required 
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
                         className="bg-gray-800/50 border-cyan-500/30 text-cyan-100 placeholder:text-cyan-300/50 focus:border-cyan-400 focus:ring-cyan-400/30 rounded-xl h-11"
                       />
                     </div>
@@ -194,6 +194,7 @@ export function AuthPageComponent() {
                       </Label>
                       <Input 
                         id="password" 
+                        placeholder="Password"
                         required 
                         type="password"
                         value={password}
@@ -223,7 +224,7 @@ export function AuthPageComponent() {
                       </Label>
                       <Input 
                         id="username" 
-                        placeholder="your_username" 
+                        placeholder="Username" 
                         required 
                         type="text"
                         value={username}
@@ -253,6 +254,7 @@ export function AuthPageComponent() {
                       </Label>
                       <Input 
                         id="password" 
+                        placeholder="Password"
                         required 
                         type="password"
                         value={password}
@@ -268,6 +270,7 @@ export function AuthPageComponent() {
                       <div className="relative">
                         <Input 
                           id="confirm-password" 
+                          placeholder="Password"
                           required 
                           type="password"
                           value={confirmPassword}
