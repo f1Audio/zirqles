@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { Camera, Lock, Mail, User, AlertTriangle, MapPin, LinkIcon } from 'lucide-react'
+import { Camera, Lock, Mail, User, AlertTriangle, MapPin, LinkIcon, MessageSquare } from 'lucide-react'
 import { Navbar } from './layout/navbar'
 import { Sidebar } from './layout/sidebar'
 import { SearchDialog } from './layout/search-dialog'
@@ -49,6 +49,8 @@ export function SettingsPageComponent() {
   const [isPasswordUpdating, setIsPasswordUpdating] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordTouched, setPasswordTouched] = useState(false)
+  const [passwordRequirements, setPasswordRequirements] = useState<string[]>([])
 
   // Modified useEffect to handle loading state better
   useEffect(() => {
@@ -95,13 +97,15 @@ export function SettingsPageComponent() {
     }
   }, [session?.user, router])
 
-  // Add password validation
+  // Update the password validation useEffect
   useEffect(() => {
     if (newPassword) {
       const validation = validatePassword(newPassword)
       setPasswordError(validation.isValid ? null : validation.missing[0])
+      setPasswordRequirements(validation.missing)
     } else {
       setPasswordError(null)
+      setPasswordRequirements([])
     }
   }, [newPassword])
 
@@ -418,68 +422,71 @@ export function SettingsPageComponent() {
                       </div>
                       <div className="space-y-4 flex-grow w-full md:w-auto">
                         <div className="space-y-2">
-                          <Label htmlFor="username" className="text-sm font-medium text-cyan-300">Username</Label>
-                          <div className="relative">
-                            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-500" />
-                            <Input
-                              id="username"
-                              value={username}
-                              onChange={(e) => setUsername(e.target.value)}
-                              maxLength={24}
-                              className="pl-10 bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
-                            />
-                          </div>
+                          <Label htmlFor="username" className="text-sm font-medium text-cyan-300 flex items-center gap-2">
+                            <User className="w-4 h-4 text-cyan-500" />
+                            <span>Username</span>
+                          </Label>
+                          <Input
+                            id="username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            maxLength={24}
+                            className="bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
+                          />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="email" className="text-sm font-medium text-cyan-300">Email</Label>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-500" />
-                            <Input
-                              id="email"
-                              type="email"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              className="pl-10 bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
-                            />
-                          </div>
+                          <Label htmlFor="email" className="text-sm font-medium text-cyan-300 flex items-center gap-2">
+                            <Mail className="w-4 h-4 text-cyan-500" />
+                            <span>Email</span>
+                          </Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
+                          />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="bio" className="text-sm font-medium text-cyan-300">Bio</Label>
+                          <Label htmlFor="bio" className="text-sm font-medium text-cyan-300 flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4 text-cyan-500" />
+                            <span>Bio</span>
+                          </Label>
                           <textarea
                             id="bio"
                             value={bio}
                             onChange={(e) => setBio(e.target.value)}
                             rows={3}
-                            className="w-full bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl p-3 resize-none"
+                            className="w-full bg-gray-800/80 border border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl p-3 resize-none placeholder:text-cyan-400/30 placeholder:font-light focus:outline-none"
                             placeholder="Tell us about yourself..."
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="location" className="text-sm font-medium text-cyan-300">Location</Label>
-                          <div className="relative">
-                            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-500" />
-                            <Input
-                              id="location"
-                              value={location}
-                              onChange={(e) => setLocation(e.target.value)}
-                              className="pl-10 bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
-                              placeholder="Your location"
-                            />
-                          </div>
+                          <Label htmlFor="location" className="text-sm font-medium text-cyan-300 flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-cyan-500" />
+                            <span>Location</span>
+                          </Label>
+                          <Input
+                            id="location"
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            className="bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl placeholder:text-cyan-400/30 placeholder:font-light"
+                            placeholder="Your location"
+                          />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="website" className="text-sm font-medium text-cyan-300">Website</Label>
-                          <div className="relative">
-                            <LinkIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-500" />
-                            <Input
-                              id="website"
-                              type="url"
-                              value={website}
-                              onChange={(e) => setWebsite(e.target.value)}
-                              className="pl-10 bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
-                              placeholder="https://your-website.com"
-                            />
-                          </div>
+                          <Label htmlFor="website" className="text-sm font-medium text-cyan-300 flex items-center gap-2">
+                            <LinkIcon className="w-4 h-4 text-cyan-500" />
+                            <span>Website</span>
+                          </Label>
+                          <Input
+                            id="website"
+                            type="url"
+                            value={website}
+                            onChange={(e) => setWebsite(e.target.value)}
+                            className="bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl placeholder:text-cyan-400/30 placeholder:font-light"
+                            placeholder="https://your-website.com"
+                          />
                         </div>
                         <Button 
                           className="w-full bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white font-medium rounded-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-md hover:shadow-cyan-500/20"
@@ -497,32 +504,37 @@ export function SettingsPageComponent() {
                     <h2 className="text-xl font-semibold mb-6">Security</h2>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="current-password" className="text-sm font-medium text-cyan-300">Current Password</Label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-500" />
-                          <Input
-                            id="current-password"
-                            type="password"
-                            value={currentPassword}
-                            onChange={(e) => setCurrentPassword(e.target.value)}
-                            className="pl-10 bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
-                          />
-                        </div>
+                        <Label htmlFor="current-password" className="text-sm font-medium text-cyan-300 flex items-center gap-2">
+                          <Lock className="w-4 h-4 text-cyan-500" />
+                          <span>Current Password</span>
+                        </Label>
+                        <Input
+                          id="current-password"
+                          placeholder="Enter current password"
+                          type="password"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          className="bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl placeholder:text-cyan-400/30 placeholder:font-light"
+                        />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="new-password" className="text-sm font-medium text-cyan-300">New Password</Label>
+                        <Label htmlFor="new-password" className="text-sm font-medium text-cyan-300 flex items-center gap-2">
+                          <Lock className="w-4 h-4 text-cyan-500" />
+                          <span>New Password</span>
+                        </Label>
                         <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-500" />
                           <Input
                             id="new-password"
+                            placeholder="Enter new password"
                             type="password"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            className={`pl-10 bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl ${
-                              passwordError ? 'border-red-500 focus:border-red-500' : ''
+                            onBlur={() => setPasswordTouched(true)}
+                            className={`bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl placeholder:text-cyan-400/30 placeholder:font-light ${
+                              passwordError && passwordTouched ? 'border-red-500 focus:border-red-500' : ''
                             }`}
                           />
-                          {passwordError && (
+                          {passwordError && passwordTouched && (
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -539,23 +551,29 @@ export function SettingsPageComponent() {
                             </TooltipProvider>
                           )}
                         </div>
-                        <p className="text-xs text-cyan-300/70">
-                          Password must be 8-128 characters and include uppercase, lowercase, number, and special character.
-                        </p>
+                        {passwordTouched && passwordRequirements.length > 0 && (
+                          <p className="text-xs text-red-400 animate-fadeIn py-2">
+                            {passwordRequirements[0]}
+                          </p>
+                        )}
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="confirm-password" className="text-sm font-medium text-cyan-300">Confirm New Password</Label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-500" />
-                          <Input
-                            id="confirm-password"
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            className="pl-10 bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
-                          />
-                        </div>
+                        <Label htmlFor="confirm-password" className="text-sm font-medium text-cyan-300 flex items-center gap-2">
+                          <Lock className="w-4 h-4 text-cyan-500" />
+                          <span>Confirm New Password</span>
+                        </Label>
+                        <Input
+                          id="confirm-password"
+                          placeholder="Confirm new password"
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl placeholder:text-cyan-400/30 placeholder:font-light"
+                        />
                       </div>
+                      <p className="text-xs text-cyan-300/70">
+                        Password must be minimum 8 characters and include uppercase, lowercase, number, and special character.
+                      </p>
                       <Button 
                         className="w-full bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white font-medium rounded-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-md hover:shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={handlePasswordUpdate}
