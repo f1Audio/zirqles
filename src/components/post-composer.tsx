@@ -129,6 +129,14 @@ export function PostComposer({ value, onChange, onSubmit }: PostComposerProps) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="min-h-[100px] w-full bg-transparent border-none focus:border-none text-cyan-100 placeholder-cyan-300/50 resize-none"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (value.trim() || media.length > 0) {
+              handleSubmit();
+            }
+          }
+        }}
       />
       
       {/* Media Preview */}

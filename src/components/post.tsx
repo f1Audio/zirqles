@@ -611,6 +611,19 @@ export function Post({
                     placeholder="Add a comment..."
                     className="w-full bg-transparent text-sm text-cyan-100 placeholder-cyan-300/50 focus:outline-none resize-none"
                     rows={1}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (currentCommentContent.trim()) {
+                          onInteraction?.('comment', post._id, currentCommentContent);
+                          if (!isCommentPost(post)) {
+                            onCommentChange?.('');
+                          } else {
+                            setLocalCommentContent('');
+                          }
+                        }
+                      }
+                    }}
                   />
                   <Button
                     onClick={() => onInteraction?.('comment', post._id, currentCommentContent)}
