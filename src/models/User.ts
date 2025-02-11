@@ -16,7 +16,18 @@ export interface IUser {
 }
 
 const userSchema = new Schema<IUser>({
-  username: { type: String, required: true, unique: true },
+  username: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    maxlength: 24,
+    validate: {
+      validator: function(v: string) {
+        return v.length <= 24;
+      },
+      message: 'Username cannot be longer than 24 characters'
+    }
+  },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   avatar: {

@@ -252,6 +252,12 @@ export function SettingsPageComponent() {
 
   const handleProfileUpdate = async () => {
     try {
+      // Update client-side validation
+      if (username.length > 24) {
+        toast.error('Username cannot be longer than 24 characters')
+        return
+      }
+
       setIsProfileUpdating(true)
       
       const response = await fetch('/api/user', {
@@ -395,6 +401,7 @@ export function SettingsPageComponent() {
                               id="username"
                               value={username}
                               onChange={(e) => setUsername(e.target.value)}
+                              maxLength={24}
                               className="pl-10 bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
                             />
                           </div>

@@ -6,6 +6,15 @@ import bcrypt from 'bcryptjs'
 export async function POST(req: Request) {
   try {
     const { username, email, password } = await req.json()
+    
+    // Update length validation
+    if (username.length > 24) {
+      return NextResponse.json({ 
+        error: 'Username too long', 
+        message: 'Username cannot be longer than 24 characters' 
+      }, { status: 400 })
+    }
+
     console.log('Received data:', { username, email, password })
     await dbConnect()
     console.log('Database connected successfully')

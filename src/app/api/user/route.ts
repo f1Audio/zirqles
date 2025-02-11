@@ -65,6 +65,14 @@ export async function PATCH(request: Request) {
     const data = await request.json()
     const { username, email, bio, location, website, avatar } = data
 
+    // Update length validation
+    if (username && username.length > 24) {
+      return NextResponse.json({ 
+        error: 'Username too long',
+        message: 'Username cannot be longer than 24 characters'
+      }, { status: 400 })
+    }
+
     // Validate input
     if (!username && !email && !bio && !location && !website && !avatar) {
       return NextResponse.json({ error: 'No data to update' }, { status: 400 })
