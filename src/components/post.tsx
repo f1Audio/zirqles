@@ -411,9 +411,6 @@ export function Post({
                     {post.author.username}
                   </span>
                 </Link>
-                <span className="text-xs text-cyan-500">
-                  @{post.author.username.toLowerCase()}
-                </span>
                 <span className="text-xs text-cyan-500/50">·</span>
                 <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400">
                   {formatTimestamp(post.createdAt)}
@@ -528,12 +525,6 @@ export function Post({
                   {post.author.username}
                 </span>
               </Link>
-              <span className={cn(
-                "text-cyan-500",
-                isCommentPost(post) ? 'text-xs' : 'text-sm'
-              )}>
-                @{post.author.username.toLowerCase()}
-              </span>
               <span className="text-xs text-cyan-500/50">·</span>
               <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400">
                 {formatTimestamp(post.createdAt)}
