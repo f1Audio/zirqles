@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Loader2, AlertCircle, User, Mail, Lock } from 'lucide-react'
 import type { LucideProps } from 'lucide-react'
 import { toast } from 'sonner'
+import { validatePassword } from '@/lib/utils'
 
 const Icons = {
   spinner: Loader2,
@@ -48,19 +49,41 @@ export function AuthPageComponent() {
   const [password, setPassword] = useState<string>('')
   const [confirmPassword, setConfirmPassword] = useState<string>('')
   const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordTouched, setPasswordTouched] = useState(false)
+  const [passwordRequirements, setPasswordRequirements] = useState<string[]>([])
+  const [activeTab, setActiveTab] = useState('login')
   const router = useRouter()
   const { data: session, status } = useSession()
 
   useEffect(() => {
+    if (password && passwordTouched) {
+      const validation = validatePassword(password)
+      setPasswordRequirements(validation.missing)
+      setPasswordError(validation.missing.length > 0 ? validation.missing[0] : null)
+    } else {
+      setPasswordRequirements([])
+      setPasswordError(null)
+    }
+
     if (password && confirmPassword) {
       setPasswordsMatch(password === confirmPassword)
     } else {
       setPasswordsMatch(null)
     }
-  }, [password, confirmPassword])
+  }, [password, confirmPassword, passwordTouched])
 
   async function onSubmit(event: React.SyntheticEvent, mode: 'login' | 'register') {
     event.preventDefault()
+    
+    if (mode === 'register') {
+      const validation = validatePassword(password)
+      if (!validation.isValid) {
+        toast.error(validation.missing.join('\n'))
+        return
+      }
+    }
+
     setIsLoading(true)
 
     try {
@@ -154,7 +177,7 @@ export function AuthPageComponent() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6 sm:p-8">
-            <Tabs defaultValue="login" className="space-y-4">
+            <Tabs defaultValue="login" className="space-y-4" value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-2 bg-gray-800/50 border border-cyan-500/30 rounded-2xl p-1 h-12">
                 <TabsTrigger 
                   value="login" 
@@ -192,15 +215,25 @@ export function AuthPageComponent() {
                         <Icons.lock className="w-4 h-4" />
                         <span>Password</span>
                       </Label>
-                      <Input 
-                        id="password" 
-                        placeholder="Password"
-                        required 
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="bg-gray-800/50 border-cyan-500/30 text-cyan-100 placeholder:text-cyan-300/50 focus:border-cyan-400 focus:ring-cyan-400/30 rounded-xl h-11"
-                      />
+                      <div className="relative">
+                        <Input 
+                          id="password" 
+                          placeholder="Password"
+                          required 
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          onBlur={() => setPasswordTouched(true)}
+                          className={`bg-gray-800/50 border-cyan-500/30 text-cyan-100 placeholder:text-cyan-300/50 focus:ring-cyan-400/30 ${
+                            passwordError && activeTab === 'register' ? 'border-red-500 focus:border-red-500' : ''
+                          } rounded-xl h-11`}
+                        />
+                      </div>
+                      {activeTab === 'register' && passwordTouched && passwordRequirements.length > 0 && (
+                        <p className="text-xs text-red-400 animate-fadeIn py-2">
+                          {passwordRequirements[0]}
+                        </p>
+                      )}
                     </div>
                     <Button 
                       className="w-full bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white border-0 rounded-xl h-11 transition-all duration-300" 
@@ -252,15 +285,25 @@ export function AuthPageComponent() {
                         <Icons.lock className="w-4 h-4" />
                         <span>Password</span>
                       </Label>
-                      <Input 
-                        id="password" 
-                        placeholder="Password"
-                        required 
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={`bg-gray-800/50 border-cyan-500/30 text-cyan-100 placeholder:text-cyan-300/50 focus:ring-cyan-400/30 ${getInputStyle(true)} rounded-xl h-11`}
-                      />
+                      <div className="relative">
+                        <Input 
+                          id="password" 
+                          placeholder="Password"
+                          required 
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          onBlur={() => setPasswordTouched(true)}
+                          className={`bg-gray-800/50 border-cyan-500/30 text-cyan-100 placeholder:text-cyan-300/50 focus:ring-cyan-400/30 ${
+                            passwordError && activeTab === 'register' ? 'border-red-500 focus:border-red-500' : ''
+                          } rounded-xl h-11`}
+                        />
+                      </div>
+                      {activeTab === 'register' && passwordTouched && passwordRequirements.length > 0 && (
+                        <p className="text-xs text-red-400 animate-fadeIn py-2">
+                          {passwordRequirements[0]}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirm-password" className="flex items-center space-x-2 text-cyan-300">
@@ -277,18 +320,6 @@ export function AuthPageComponent() {
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           className={`bg-gray-800/50 border-cyan-500/30 text-cyan-100 placeholder:text-cyan-300/50 focus:ring-cyan-400/30 ${getInputStyle(true)} rounded-xl h-11`}
                         />
-                        {passwordsMatch === false && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <AlertCircle className="w-4 h-4 absolute right-3 top-3 text-red-500" />
-                              </TooltipTrigger>
-                              <TooltipContent className="bg-gray-800 text-cyan-300 border border-cyan-500/30">
-                                <p>Passwords must match</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
                       </div>
                     </div>
                     <Button 

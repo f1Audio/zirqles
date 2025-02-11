@@ -27,3 +27,21 @@ export function formatTextWithMentions(text: string) {
     }
   }).filter(part => part.type === 'text' ? part.content : true) // Filter out empty parts
 }
+
+export const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])[A-Za-z\d!@#$%^&*(),.?":{}|<>]{8,128}$/
+
+export const validatePassword = (password: string): { isValid: boolean; missing: string[] } => {
+  const missing: string[] = [];
+  
+  if (password.length < 8) missing.push('Must be at least 8 characters long');
+  if (password.length > 128) missing.push('Must not exceed 128 characters');
+  if (!password.match(/[a-z]/)) missing.push('Must include a lowercase letter');
+  if (!password.match(/[A-Z]/)) missing.push('Must include an uppercase letter');
+  if (!password.match(/\d/)) missing.push('Must include a number');
+  if (!password.match(/[!@#$%^&*(),.?":{}|<>]/)) missing.push('Must include a special character');
+  
+  return { 
+    isValid: missing.length === 0,
+    missing 
+  };
+}

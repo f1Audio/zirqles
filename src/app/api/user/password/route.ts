@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import dbConnect from '@/lib/mongodb'
 import { User } from '@/models/User'
 import bcrypt from 'bcryptjs'
+import { validatePassword } from '@/lib/utils'
 
 // POST /api/user/password
 export async function POST(request: Request) {
@@ -18,6 +19,15 @@ export async function POST(request: Request) {
     // Validate input
     if (!currentPassword || !newPassword) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Validate new password
+    const passwordValidation = validatePassword(newPassword)
+    if (!passwordValidation.isValid) {
+      return NextResponse.json({ 
+        error: 'Invalid password', 
+        message: passwordValidation.missing[0]
+      }, { status: 400 })
     }
 
     await dbConnect()

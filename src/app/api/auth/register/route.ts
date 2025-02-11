@@ -2,11 +2,21 @@ import { NextResponse } from 'next/server'
 import dbConnect from '@/lib/mongodb'
 import { User } from '@/models/User'
 import bcrypt from 'bcryptjs'
+import { validatePassword } from '@/lib/utils'
 
 export async function POST(req: Request) {
   try {
     const { username, email, password } = await req.json()
     
+    // Validate password
+    const passwordValidation = validatePassword(password)
+    if (!passwordValidation.isValid) {
+      return NextResponse.json({ 
+        error: 'Invalid password', 
+        message: passwordValidation.missing[0]
+      }, { status: 400 })
+    }
+
     // Update length validation
     if (username.length > 24) {
       return NextResponse.json({ 

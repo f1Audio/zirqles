@@ -21,6 +21,9 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { userQueryKeys } from '../queries/user'
 import { UserData } from '@/queries/user'
 import { useUpdateAvatar } from '../queries/user'
+import { validatePassword } from '@/lib/utils'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { AlertCircle } from "lucide-react"
 
 // Add this import for the user API endpoint
 const USER_API_ENDPOINT = '/api/user'
@@ -45,6 +48,7 @@ export function SettingsPageComponent() {
   const [isProfileUpdating, setIsProfileUpdating] = useState(false)
   const [isPasswordUpdating, setIsPasswordUpdating] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
 
   // Modified useEffect to handle loading state better
   useEffect(() => {
@@ -90,6 +94,16 @@ export function SettingsPageComponent() {
       loadUserData()
     }
   }, [session?.user, router])
+
+  // Add password validation
+  useEffect(() => {
+    if (newPassword) {
+      const validation = validatePassword(newPassword)
+      setPasswordError(validation.isValid ? null : validation.missing[0])
+    } else {
+      setPasswordError(null)
+    }
+  }, [newPassword])
 
   // Add proper loading state check
   if (status === "loading" || isLoading) {
@@ -326,21 +340,31 @@ export function SettingsPageComponent() {
   }
 
   const handlePasswordUpdate = async () => {
-    if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match')
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields')
       return
     }
 
+    const validation = validatePassword(newPassword)
+    if (!validation.isValid) {
+      toast.error(validation.missing[0])
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match')
+      return
+    }
+
+    setIsPasswordUpdating(true)
     try {
-      setIsPasswordUpdating(true)
       await updatePassword(currentPassword, newPassword)
+      toast.success('Password updated successfully')
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      toast.success('Password updated successfully')
     } catch (error) {
       toast.error('Failed to update password')
-      console.error(error)
     } finally {
       setIsPasswordUpdating(false)
     }
@@ -494,9 +518,30 @@ export function SettingsPageComponent() {
                             type="password"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            className="pl-10 bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
+                            className={`pl-10 bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl ${
+                              passwordError ? 'border-red-500 focus:border-red-500' : ''
+                            }`}
                           />
+                          {passwordError && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertCircle className="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500" />
+                                </TooltipTrigger>
+                                <TooltipContent 
+                                  className="bg-gray-800/95 text-red-400 border border-red-500/30 px-3 py-2 rounded-lg shadow-lg backdrop-blur-sm"
+                                  side="right"
+                                  sideOffset={5}
+                                >
+                                  <p className="text-sm">{passwordError}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
+                        <p className="text-xs text-cyan-300/70">
+                          Password must be 8-128 characters and include uppercase, lowercase, number, and special character.
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="confirm-password" className="text-sm font-medium text-cyan-300">Confirm New Password</Label>
