@@ -26,7 +26,7 @@ export async function GET() {
 
     const user = await User.findOne(
       { email: session.user.email },
-      '_id username email avatar bio location website followers following createdAt'
+      '_id username email avatar bio location website followers following createdAt name'
     ).lean()
 
     if (!user) {
@@ -37,6 +37,7 @@ export async function GET() {
     const response = {
       _id: user._id,
       username: user.username,
+      name: user.name,
       email: user.email,
       avatar: user.avatar,
       bio: user.bio || '',
@@ -63,7 +64,7 @@ export async function PATCH(request: Request) {
     }
 
     const data = await request.json()
-    const { username, email, bio, location, website, avatar } = data
+    const { username, email, bio, location, website, avatar, name } = data
 
     // Update length validation
     if (username && username.length > 24) {
@@ -118,11 +119,12 @@ export async function PATCH(request: Request) {
         ...(bio !== undefined && { bio }),
         ...(location !== undefined && { location }),
         ...(website !== undefined && { website }),
-        ...(avatar && { avatar })
+        ...(avatar && { avatar }),
+        ...(name !== undefined && { name })
       },
       { 
         new: true, 
-        select: '_id username email avatar bio location website followers following createdAt'
+        select: '_id username email avatar bio location website followers following createdAt name'
       }
     )
 
@@ -134,6 +136,7 @@ export async function PATCH(request: Request) {
     const response = {
       _id: updatedUser._id,
       username: updatedUser.username,
+      name: updatedUser.name,
       email: updatedUser.email,
       avatar: updatedUser.avatar,
       bio: updatedUser.bio,

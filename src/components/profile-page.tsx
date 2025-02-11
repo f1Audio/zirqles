@@ -341,7 +341,7 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
                   {avatarSection}
                   <div className="mt-4">
                     <h2 className="font-bold text-lg lg:text-2xl mb-1">
-                      {displayName}
+                      {userData.name || displayName}
                     </h2>
                     <p className="text-cyan-500 text-sm lg:text-base">
                       @{username.toLowerCase().slice(0, 30)}

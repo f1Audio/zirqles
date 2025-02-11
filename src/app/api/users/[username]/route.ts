@@ -20,6 +20,7 @@ export async function GET(
         $project: {
           _id: 1,
           username: 1,
+          name: 1,
           avatar: 1,
           bio: 1,
           location: 1,
@@ -44,7 +45,8 @@ export async function GET(
 
     return NextResponse.json({
       id: user._id.toString(),
-      name: user.username,
+      name: user.name,
+      username: user.username,
       handle: `@${user.username.toLowerCase()}`,
       avatar: user.avatar || `/placeholder.svg?height=128&width=128&text=${user.username.charAt(0)}`,
       location: user.location || '',
@@ -59,7 +61,7 @@ export async function GET(
       })
     })
   } catch (error) {
-    console.error('Error fetching user data:', error)
+    console.error('GET /api/users/[username] error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 } 

@@ -37,17 +37,13 @@ export async function POST(req: Request) {
     }
 
     try {
-      // Use the provided avatar but fallback to database values for other fields
-      const userData = {
+      // Create or update user in Stream
+      await serverClient.upsertUser({
         id: targetUserId,
-        name: name || user.username,
+        name: user.name || name,
         image: avatar || user.avatar,
         role: 'user'
-      };
-
-      console.log('Updating Stream user with:', userData);
-
-      await serverClient.upsertUsers([userData]);
+      })
 
       return NextResponse.json({ success: true })
     } catch (streamError) {

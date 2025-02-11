@@ -3,6 +3,7 @@ import mongoose, { Model, models, Schema } from 'mongoose'
 export interface IUser {
   _id: mongoose.Types.ObjectId;
   username: string;
+  name?: string;
   email: string;
   password: string;
   avatar?: string;
@@ -26,6 +27,16 @@ const userSchema = new Schema<IUser>({
         return v.length <= 24;
       },
       message: 'Username cannot be longer than 24 characters'
+    }
+  },
+  name: { 
+    type: String,
+    maxlength: 24,
+    validate: {
+      validator: function(v: string) {
+        return !v || v.length <= 50;
+      },
+      message: 'Name cannot be longer than 50 characters'
     }
   },
   email: { type: String, required: true, unique: true },

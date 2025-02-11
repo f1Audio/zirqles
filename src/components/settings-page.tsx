@@ -51,6 +51,7 @@ export function SettingsPageComponent() {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordTouched, setPasswordTouched] = useState(false)
   const [passwordRequirements, setPasswordRequirements] = useState<string[]>([])
+  const [name, setName] = useState("")
 
   // Modified useEffect to handle loading state better
   useEffect(() => {
@@ -63,7 +64,6 @@ export function SettingsPageComponent() {
 
         setIsLoading(true)
         
-        // Use the user API endpoint directly
         const response = await fetch('/api/user')
         if (!response.ok) {
           throw new Error('Failed to fetch user data')
@@ -71,7 +71,11 @@ export function SettingsPageComponent() {
         
         const userData = await response.json()
         
+        // Add console.log to debug
+        console.log('Loaded user data:', userData)
+        
         // Set all fields from the response
+        setName(userData.name || "")
         setAvatar(userData.avatar || "")
         setUsername(userData.username || "")
         setEmail(userData.email || "")
@@ -84,6 +88,7 @@ export function SettingsPageComponent() {
         
         // Set defaults from session
         if (session?.user) {
+          setName(session.user.name || "")
           setUsername(session.user.username || "")
           setEmail(session.user.email || "")
         }
@@ -284,6 +289,7 @@ export function SettingsPageComponent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          name,
           username,
           email,
           bio,
@@ -300,11 +306,12 @@ export function SettingsPageComponent() {
 
       const updatedUser = await response.json()
 
-      // Update session with fresh data
+      // Update session with fresh data including name
       await update({
         ...session,
         user: {
           ...session?.user,
+          name: updatedUser.name,  // Make sure we're updating name in session
           username: updatedUser.username,
           email: updatedUser.email,
           avatar: updatedUser.avatar
@@ -421,6 +428,20 @@ export function SettingsPageComponent() {
                         </Label>
                       </div>
                       <div className="space-y-4 flex-grow w-full md:w-auto">
+                        <div className="space-y-2">
+                          <Label htmlFor="name" className="text-sm font-medium text-cyan-300 flex items-center gap-2">
+                            <User className="w-4 h-4 text-cyan-500" />
+                            <span>Display Name</span>
+                          </Label>
+                          <Input
+                            id="name"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            maxLength={24}
+                            className="bg-gray-800/80 border-cyan-500/50 text-cyan-100 focus:border-cyan-400 focus:bg-gray-800 rounded-xl"
+                            
+                          />
+                        </div>
                         <div className="space-y-2">
                           <Label htmlFor="username" className="text-sm font-medium text-cyan-300 flex items-center gap-2">
                             <User className="w-4 h-4 text-cyan-500" />
