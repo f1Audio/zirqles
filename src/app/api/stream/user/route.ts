@@ -13,7 +13,11 @@ const serverClient = StreamChat.getInstance(
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
-    console.log('Session in stream/user:', session?.user)
+    console.log('Stream user update - Session data:', {
+      id: session?.user?.id,
+      name: session?.user?.name,
+      username: session?.user?.username
+    })
     
     if (!session?.user?.id) {
       console.error('No session or user ID found')

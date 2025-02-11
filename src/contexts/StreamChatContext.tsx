@@ -59,7 +59,7 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
         await streamClient.connectUser(
           {
             id: session.user.id,
-            name: session.user.username ?? '',
+            name: session.user.name ?? session.user.username ?? '',
             image: session.user.image ?? '',
           },
           token
@@ -153,7 +153,7 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               targetUserId,
-              name: userData.username,
+              name: userData.name || userData.username,
               avatar: userData.avatar,
             }),
           })

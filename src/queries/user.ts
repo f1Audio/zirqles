@@ -160,7 +160,7 @@ export function useUpdateAvatar() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               targetUserId: session.user.id,
-              name: userData.username,
+              name: userData.name || userData.username,
               avatar: newAvatar
             }),
           })

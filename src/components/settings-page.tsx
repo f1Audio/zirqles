@@ -162,7 +162,7 @@ export function SettingsPageComponent() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             targetUserId: session.user.id,
-            name: userData.username,  // Use fresh username from userData
+            name: userData.name || userData.username,
             avatar: result
           }),
         });
@@ -328,7 +328,7 @@ export function SettingsPageComponent() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             targetUserId: session.user.id,
-            name: updatedUser.username,
+            name: updatedUser.name || updatedUser.username,
             avatar: updatedUser.avatar
           }),
         })

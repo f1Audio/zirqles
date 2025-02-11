@@ -38,7 +38,7 @@ async function handleSession(request: Request) {
         username: user.username,
         avatar: user.avatar,
         image: user.avatar, // Maintain compatibility with NextAuth
-        name: user.username // Maintain compatibility with NextAuth
+        name: user.name || user.username
       }
     }
 
