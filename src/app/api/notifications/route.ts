@@ -25,19 +25,25 @@ export async function GET(req: Request) {
       .sort({ createdAt: -1 })
       .lean()
 
+    // Filter out notifications with deleted senders
+    const validNotifications = notifications.filter(notification => notification.sender)
+
     // Format notifications
-    const formattedNotifications = notifications.map((notification: any) => ({
+    const formattedNotifications = validNotifications.map((notification: any) => ({
       _id: notification._id.toString(),
       type: notification.type,
-      user: notification.sender.username,
-      avatar: notification.sender.avatar,
+      user: notification.sender?.username || 'Deleted User',
+      avatar: notification.sender?.avatar || 'DU',
       content: getNotificationContent(notification),
       time: getRelativeTime(new Date(notification.createdAt)),
       read: notification.read,
       postId: notification.post?._id,
-      sender: {
+      sender: notification.sender ? {
         username: notification.sender.username,
         avatar: notification.sender.avatar
+      } : {
+        username: 'Deleted User',
+        avatar: 'DU'
       },
       post: notification.post ? {
         type: notification.post.type,
@@ -102,7 +108,7 @@ export async function DELETE() {
 
 // Helper function to format notification content
 function getNotificationContent(notification: any) {
-  const username = notification.sender?.username || 'Someone'
+  const username = notification.sender?.username || 'Deleted User'
   
   switch (notification.type) {
     case 'like':
@@ -116,7 +122,6 @@ function getNotificationContent(notification: any) {
     case 'repost':
       return `${username} reposted your post`
     case 'mention':
-      // Check if the mention is in a comment or post
       const contentType = notification.post?.type === 'comment' ? 'comment' : 'post'
       return `${username} mentioned you in a ${contentType}`
     default:

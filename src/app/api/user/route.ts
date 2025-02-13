@@ -8,6 +8,7 @@ import { s3Client } from '@/lib/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { StreamChat } from 'stream-chat'
 import { deleteUserFolderFromS3 } from '@/lib/s3';
+import { Notification } from '@/models/notification'
 
 // Initialize Stream client
 const serverClient = StreamChat.getInstance(
@@ -237,6 +238,12 @@ export async function DELETE() {
         { following: userId },
         { $pull: { following: userId } }
       )
+    ]);
+
+    // Delete all notifications sent by or received by this user
+    await Promise.all([
+      Notification.deleteMany({ sender: userId }),
+      Notification.deleteMany({ recipient: userId })
     ]);
 
     // 9. Delete all sessions for this user from the database
