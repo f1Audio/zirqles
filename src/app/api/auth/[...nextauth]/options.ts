@@ -156,6 +156,7 @@ export const authOptions: NextAuthOptions = {
             existingUser = await User.create({
               email: user.email,
               username: finalUsername,
+              name: user.name || finalUsername,
               avatar: user.image || undefined,
               password: await bcrypt.hash(Math.random().toString(36), 10),
             })

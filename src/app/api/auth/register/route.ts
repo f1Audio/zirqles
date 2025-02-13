@@ -56,6 +56,7 @@ export async function POST(req: Request) {
       username,
       email,
       password: hashedPassword,
+      name: username,
     })
     console.log('New user created:', newUser)
 
