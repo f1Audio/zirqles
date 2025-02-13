@@ -7,6 +7,7 @@ import { Post } from '@/models/Post'
 import { s3Client } from '@/lib/s3';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { StreamChat } from 'stream-chat'
+import { deleteUserFolderFromS3 } from '@/lib/s3';
 
 // Initialize Stream client
 const serverClient = StreamChat.getInstance(
@@ -216,17 +217,12 @@ export async function DELETE() {
     
     await Post.deleteMany({ replyTo: { $in: userPostIds } })
 
-    // 8. Delete avatar from S3 if exists
-    if (user.avatar) {
-      try {
-        await s3Client.send(new DeleteObjectCommand({
-          Bucket: process.env.AWS_BUCKET_NAME as string,
-          Key: user.avatar
-        }));
-      } catch (error) {
-        console.error('Error deleting user avatar:', error);
-        // Continue with user deletion even if avatar deletion fails
-      }
+    // 8. Delete all user files from S3
+    try {
+      await deleteUserFolderFromS3(userId.toString());
+    } catch (error) {
+      console.error('Error deleting user files from S3:', error);
+      // Continue with account deletion even if S3 deletion fails
     }
 
     // 8.5. Remove user from others' followers and following lists
