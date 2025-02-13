@@ -294,7 +294,7 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
 
   const displayName = session?.user?.username === username 
     ? session.user.username 
-    : userData?.name || session?.user?.username || 'Loading...'
+    : userData?.name || userData?.username || 'Loading...'
 
   const displayAvatar = isOwnProfile
     ? currentUser?.avatar || session?.user?.avatar
