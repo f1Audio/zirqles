@@ -1,24 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Zirqles - Social Media Platform
+
+A modern social media platform built with Next.js, TypeScript, and MongoDB.
+
+## Features
+
+- User authentication with email/password and Google OAuth
+- Profile customization with avatar upload
+- Post creation and interaction (likes, comments, reposts)
+- Real-time updates
+- Responsive design
+
+## Tech Stack
+
+- Next.js 14 (App Router)
+- TypeScript
+- MongoDB
+- AWS S3
+- NextAuth.js
+- Tailwind CSS
+- Shadcn UI
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository
+2. Copy `.env.example` to `.env.local` and fill in your environment variables
+3. Install dependencies: `npm install`
+4. Run development server: `npm run dev`
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Deployment
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This project is configured for deployment on Vercel:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Push your code to GitHub
+2. Import project to Vercel
+3. Configure environment variables
+4. Deploy!
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment Variables Required
+
+- `NEXTAUTH_SECRET`
+- `NEXTAUTH_URL`
+- `MONGODB_URI`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_REGION`
 
 ## Learn More
 

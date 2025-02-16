@@ -9,6 +9,7 @@ import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { StreamChat } from 'stream-chat'
 import { deleteUserFolderFromS3 } from '@/lib/s3';
 import { Notification } from '@/models/notification'
+import { validateUsername } from '@/lib/utils'
 
 // Initialize Stream client
 const serverClient = StreamChat.getInstance(
@@ -67,6 +68,17 @@ export async function PATCH(request: Request) {
 
     const data = await request.json()
     const { username, email, bio, location, website, avatar, name } = data
+
+    // Add username validation
+    if (username) {
+      const usernameValidation = validateUsername(username)
+      if (!usernameValidation.isValid) {
+        return NextResponse.json({ 
+          error: 'Invalid username',
+          message: usernameValidation.message
+        }, { status: 400 })
+      }
+    }
 
     // Update length validation
     if (username && username.length > 24) {

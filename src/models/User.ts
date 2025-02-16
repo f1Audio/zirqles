@@ -22,12 +22,20 @@ const userSchema = new Schema<IUser>({
     required: true, 
     unique: true,
     maxlength: 24,
-    validate: {
-      validator: function(v: string) {
-        return v.length <= 24;
+    validate: [
+      {
+        validator: function(v: string) {
+          return v.length <= 24;
+        },
+        message: 'Username cannot be longer than 24 characters'
       },
-      message: 'Username cannot be longer than 24 characters'
-    }
+      {
+        validator: function(v: string) {
+          return /^[a-z0-9]+$/.test(v);
+        },
+        message: 'Username can only contain lowercase letters and numbers'
+      }
+    ]
   },
   name: { 
     type: String,

@@ -141,8 +141,11 @@ export const authOptions: NextAuthOptions = {
           let existingUser = await User.findOne({ email: user.email })
           
           if (!existingUser) {
-            // Generate username from email
-            let baseUsername = user.email?.split('@')[0] || ''
+            // Generate username from email - ensure lowercase and remove invalid characters
+            let baseUsername = user.email?.split('@')[0]
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, '') || ''
+            
             let finalUsername = baseUsername
             let counter = 1
             

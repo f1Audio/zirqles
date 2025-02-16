@@ -45,3 +45,17 @@ export const validatePassword = (password: string): { isValid: boolean; missing:
     missing 
   };
 }
+
+export const validateUsername = (username: string): { isValid: boolean; message?: string } => {
+  // Check if username matches the pattern of only lowercase letters and numbers
+  const usernamePattern = /^[a-z0-9]+$/
+  
+  if (!usernamePattern.test(username)) {
+    return {
+      isValid: false,
+      message: 'Username can only contain lowercase letters and numbers'
+    }
+  }
+  
+  return { isValid: true }
+}
