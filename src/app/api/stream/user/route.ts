@@ -13,11 +13,6 @@ const serverClient = StreamChat.getInstance(
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
-    console.log('Stream user update - Session data:', {
-      id: session?.user?.id,
-      name: session?.user?.name,
-      username: session?.user?.username
-    })
     
     if (!session?.user?.id) {
       console.error('No session or user ID found')
@@ -25,7 +20,6 @@ export async function POST(req: Request) {
     }
 
     const { targetUserId, name, avatar } = await req.json()
-    console.log('Received update data:', { targetUserId, name, avatar })
 
     if (targetUserId !== session.user.id) {
       console.error('User ID mismatch:', { target: targetUserId, session: session.user.id })

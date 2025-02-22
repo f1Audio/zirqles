@@ -34,14 +34,11 @@ export async function POST(req: Request) {
       }, { status: 400 })
     }
 
-    console.log('Received data:', { username, email, password })
     await dbConnect()
-    console.log('Database connected successfully')
 
     // Check if user already exists (by email or username)
     const existingUser = await User.findOne({ $or: [{ email }, { username }] })
     if (existingUser) {
-      console.log('Existing user found:', existingUser)
       if (existingUser.email === email) {
         return NextResponse.json({ 
           error: 'Email already exists', 
@@ -58,7 +55,6 @@ export async function POST(req: Request) {
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
-    console.log('Password hashed successfully')
 
     // Create new user
     const newUser = await User.create({
@@ -67,7 +63,6 @@ export async function POST(req: Request) {
       password: hashedPassword,
       name: username,
     })
-    console.log('New user created:', newUser)
 
     // Return only necessary user data
     const userData = {
@@ -78,7 +73,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json(userData, { status: 201 })
   } catch (error) {
-    console.error('Registration error:', error)
     return NextResponse.json(
       { error: 'An error occurred during registration' },
       { status: error instanceof Error && error.name === 'MongoServerError' ? 400 : 500 }

@@ -23,9 +23,6 @@ export async function POST(
       return NextResponse.json({ error: 'Content is required' }, { status: 400 })
     }
 
-    console.log('Raw content:', content) // Debug log
-    console.log('Formatted mentions:', formatTextWithMentions(content)) // Debug log
-
     await dbConnect()
 
     // Create the comment
@@ -58,14 +55,10 @@ export async function POST(
       .filter(part => part.type === 'mention')
       .map(part => part.username)
 
-    console.log('Found mentions:', mentions) // Debug log
-
     if (mentions.length > 0) {
       const mentionedUsers = await User.find({
         username: { $in: mentions }
       }).select('_id')
-
-      console.log('Found mentioned users:', mentionedUsers) // Debug log
 
       // Add mention notifications
       const mentionNotifications = mentionedUsers
@@ -78,15 +71,12 @@ export async function POST(
           read: false
         }))
 
-      console.log('Created mention notifications:', mentionNotifications) // Debug log
       notifications.push(...mentionNotifications)
     }
 
     // Create all notifications
     if (notifications.length > 0) {
-      console.log('Attempting to create notifications:', notifications) // Debug log
       const createdNotifications = await Notification.insertMany(notifications)
-      console.log('Created notifications:', createdNotifications) // Debug log
     }
 
     // Return the populated comment

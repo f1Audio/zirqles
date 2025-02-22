@@ -37,7 +37,6 @@ async function dbConnect(): Promise<typeof mongoose> {
   try {
     if (cached.conn) {
       const state = mongoose.connection.readyState;
-      console.log('Connection state:', state); // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
       if (state === 1) {
         return cached.conn;
       }
@@ -46,10 +45,8 @@ async function dbConnect(): Promise<typeof mongoose> {
       cached.promise = null;
     }
 
-    console.log('Attempting MongoDB connection...');
     cached.promise = mongoose.connect(mongoUri, options);
     cached.conn = await cached.promise;
-    console.log('MongoDB connected successfully');
     return cached.conn;
 
   } catch (e) {

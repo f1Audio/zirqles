@@ -58,22 +58,6 @@ export function HomePageComponent() {
     enabled: !!session?.user?.email
   })
 
-  // Add debug logging
-  useEffect(() => {
-    console.log('Posts in component:', data)
-  }, [data])
-
-  // Use userData instead of session user data
-  useEffect(() => {
-    console.log('Posts data:', {
-      postsLength: data?.pages.flatMap(page => page.posts)?.length || 0,
-      firstPost: data?.pages.flatMap(page => page.posts)?.[0],
-      isLoading: isFetchingNextPage,
-      sessionStatus: session ? 'authenticated' : 'unauthenticated',
-      currentUser: userData?.username // Use userData here
-    })
-  }, [data, isFetchingNextPage, session, userData])
-
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage()

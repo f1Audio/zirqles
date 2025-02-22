@@ -44,30 +44,22 @@ export function ChatPageComponent() {
 
   const handleUserSelect = async (username: string) => {
     try {
-      console.log("Starting conversation with:", username);
-      
       const response = await fetch(`/api/users/${username}`)
       if (!response.ok) {
-        console.error("Failed to fetch user data:", await response.text());
         return;
       }
       const user = await response.json()
-      console.log("Found user:", user);
       
       const userId = user.id || user._id
       if (!userId) {
-        console.error("User ID is missing from response:", user);
         return;
       }
 
       const channel = await createChat(userId)
-      console.log("Created channel:", channel);
       
       if (channel) {
         setActiveChannel(channel)
         setIsSearchOpen(false)
-      } else {
-        console.error("Channel creation failed");
       }
     } catch (error) {
       console.error("Failed to create conversation:", error)
