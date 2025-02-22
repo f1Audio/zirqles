@@ -178,12 +178,12 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
       })
 
       await channel.create()
-      console.log('Channel created:', channel);
+      
       await channel.watch()
       
       return channel
     } catch (error) {
-      console.error("Error creating chat:", error)
+      
       throw error
     }
   }

@@ -167,8 +167,7 @@ export function useUpdateAvatar() {
 
         // 5. Force a single session refresh at the end
         await fetch('/api/auth/session')
-        console.log('Session refreshed')
-        console.log('Session:', session?.user.username, session?.user.avatar, session?.user.name)
+       
 
       } catch (error) {
         console.error('Error in onSuccess:', error)

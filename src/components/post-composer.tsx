@@ -108,7 +108,7 @@ export function PostComposer({ value, onChange, onSubmit }: PostComposerProps) {
       }
     }
     
-    console.log('Submitting post with media:', media)
+  
     try {
       await onSubmit(media.length > 0 ? media : undefined)
       setMedia([]) // Clear media after successful post

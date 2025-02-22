@@ -91,7 +91,6 @@ export function AuthPageComponent() {
         })
 
         if (result?.error) {
-          console.error(result.error)
           toast.error('Login failed. Please check your credentials.')
         } else {
           const urlParams = new URLSearchParams(window.location.search)
@@ -131,17 +130,14 @@ export function AuthPageComponent() {
             // Use window.location for a full page navigation
             window.location.href = '/'
           } else {
-            console.error(result.error)
             toast.error('Auto-login failed after registration')
           }
         } else {
           const data = await response.json()
-          console.error(data.message)
           toast.error(data.message || 'Registration failed.')
         }
       }
     } catch (error) {
-      console.error('Auth error:', error)
       toast.error('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
