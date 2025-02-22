@@ -8,8 +8,6 @@ import { LoadingSpinner } from './ui/loading-spinner'
 import Link from 'next/link'
 import { useUserMutations } from '@/queries/posts'
 import { useSession } from 'next-auth/react'
-import { ArrowLeft } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 
 interface UserListProps {
   username: string
@@ -17,7 +15,6 @@ interface UserListProps {
 }
 
 export function UserList({ username, type }: UserListProps) {
-  const router = useRouter()
   const { data: session } = useSession()
   const { followUser } = useUserMutations(session)
   const queryClient = useQueryClient()

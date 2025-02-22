@@ -7,10 +7,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { usePosts, useComments, usePostMutations, useUserMutations, useUserPosts } from '@/queries/posts'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { MessageCircle, Repeat2, Heart, Share, UserPlus, Mail, MapPin, Calendar, Link as LinkIcon, ArrowLeft, Settings } from 'lucide-react'
+import { Mail, MapPin, Calendar, Link as LinkIcon, ArrowLeft, Settings } from 'lucide-react'
 import Link from 'next/link'
 import { LoadingSpinner } from './ui/loading-spinner'
-import { InteractionButtons } from './interaction-buttons'
 import { Post } from './post'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -91,7 +90,6 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
   const queryClient = useQueryClient()
   const { likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
   const { followUser } = useUserMutations(session)
-  const [isLoading, setIsLoading] = useState(true)
   const [scrollPosition, setScrollPosition] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
@@ -135,25 +133,8 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     enabled: !!username
   })
 
-  const [isUsernameLong, setIsUsernameLong] = useState(false)
-  const usernameRef = useRef<HTMLParagraphElement>(null)
-
   // Add a state to track total posts count
   const [totalPosts, setTotalPosts] = useState(0)
-
-  useEffect(() => {
-    const checkUsernameLength = () => {
-      if (usernameRef.current) {
-        const usernameWidth = usernameRef.current.scrollWidth
-        const containerWidth = usernameRef.current.offsetWidth
-        setIsUsernameLong(usernameWidth > containerWidth)
-      }
-    }
-
-    checkUsernameLength()
-    window.addEventListener('resize', checkUsernameLength)
-    return () => window.removeEventListener('resize', checkUsernameLength)
-  }, [username])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -182,7 +163,7 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
     }
   }, [data])
 
-  const allPosts = data?.pages.flatMap(page => page.posts) || []
+  
 
   const handleFollow = async () => {
     if (!session) {

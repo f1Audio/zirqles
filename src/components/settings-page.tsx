@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Camera, Lock, Mail, User, AlertTriangle, MapPin, LinkIcon, MessageSquare } from 'lucide-react'
 import { Navbar } from './layout/navbar'
@@ -18,19 +17,14 @@ import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useQueryClient } from "@tanstack/react-query"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import { userQueryKeys } from '../queries/user'
-import { UserData } from '@/queries/user'
 import { useUpdateAvatar } from '../queries/user'
 import { validatePassword } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { AlertCircle } from "lucide-react"
 
-// Add this import for the user API endpoint
-const USER_API_ENDPOINT = '/api/user'
-
 export function SettingsPageComponent() {
   const router = useRouter()
-  const { user, updateUser, updatePassword, deleteAccount } = useAuth()
+  const { updatePassword, deleteAccount } = useAuth()
   const { data: session, status, update } = useSession()
   const queryClient = useQueryClient()
   const updateAvatarMutation = useUpdateAvatar();
@@ -71,10 +65,6 @@ export function SettingsPageComponent() {
         
         const userData = await response.json()
         
-        // Add console.log to debug
-        console.log('Loaded user data:', userData)
-        
-        // Set all fields from the response
         setName(userData.name || "")
         setAvatar(userData.avatar || "")
         setUsername(userData.username || "")
@@ -236,43 +226,6 @@ export function SettingsPageComponent() {
     });
   }
 
-  // Helper function to update all caches
-  function updateCaches(key: string, displayUrl: string) {
-    // Update local state
-    setAvatar(displayUrl);
-    
-    // Update user cache
-    queryClient.setQueryData(['user'], (old: any) => ({
-      ...old,
-      avatarKey: key
-    }));
-
-    // Update profile cache
-    if (session?.user?.username) {
-      queryClient.setQueryData(['user', session.user.username], (old: any) => ({
-        ...old,
-        avatarKey: key
-      }));
-    }
-
-    // Update posts cache to reflect new avatar
-    queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
-      if (!Array.isArray(old)) return old;
-      return old.map((post: any) => {
-        if (post.author?.id === session?.user?.id) {
-          return {
-            ...post,
-            author: {
-              ...post.author,
-              avatarKey: key
-            }
-          };
-        }
-        return post;
-      });
-    });
-  }
-
   const handleProfileUpdate = async () => {
     try {
       // Update client-side validation
@@ -311,7 +264,7 @@ export function SettingsPageComponent() {
         ...session,
         user: {
           ...session?.user,
-          name: updatedUser.name,  // Make sure we're updating name in session
+          name: updatedUser.name,
           username: updatedUser.username,
           email: updatedUser.email,
           avatar: updatedUser.avatar

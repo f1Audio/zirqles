@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
-import type { Session } from 'next-auth'
 export interface UserData {
   _id: string
   username: string

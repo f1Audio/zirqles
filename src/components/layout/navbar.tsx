@@ -13,7 +13,7 @@ import {
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
 interface NavbarProps {
@@ -23,7 +23,6 @@ interface NavbarProps {
 export function Navbar({ onSearchOpen }: NavbarProps) {
   const router = useRouter()
   const { data: session, status } = useSession()
-  const queryClient = useQueryClient()
   
   const { data: userData, isLoading } = useQuery({
     queryKey: ['user'],

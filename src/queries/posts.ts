@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tansta
 import { Session } from 'next-auth'
 import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
-import { createNotification } from '@/lib/notifications'
+
 
 interface Post {
   _id: string

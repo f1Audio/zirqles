@@ -8,7 +8,6 @@ import * as DialogRoot from "@radix-ui/react-dialog"
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 interface User {
   username: string

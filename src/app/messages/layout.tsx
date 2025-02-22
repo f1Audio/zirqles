@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useSession } from 'next-auth/react'
 import { Navbar } from '@/components/layout/navbar'
 import { Sidebar } from '@/components/layout/sidebar'
 import { SearchDialog } from '@/components/layout/search-dialog'
@@ -12,7 +11,6 @@ export default function MessagesLayout({
   children: React.ReactNode
 }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const { data: session } = useSession()
 
   return (
     <div className="min-h-screen bg-gray-900">

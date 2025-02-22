@@ -1,15 +1,13 @@
 'use client'
 
-import { useState, useEffect, useContext } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn, useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Loader2, AlertCircle, User, Mail, Lock } from 'lucide-react'
+import { Loader2, User, Mail, Lock } from 'lucide-react'
 import type { LucideProps } from 'lucide-react'
 import { toast } from 'sonner'
 import { validatePassword } from '@/lib/utils'
@@ -53,9 +51,7 @@ export function AuthPageComponent() {
   const [passwordTouched, setPasswordTouched] = useState(false)
   const [passwordRequirements, setPasswordRequirements] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState('login')
-  const router = useRouter()
-  const { data: session, status } = useSession()
-
+  
   useEffect(() => {
     if (password && passwordTouched) {
       const validation = validatePassword(password)

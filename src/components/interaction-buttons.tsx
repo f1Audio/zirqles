@@ -2,7 +2,6 @@ import { Button } from "./ui/button"
 import { MessageCircle, Repeat2, Heart, Share } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
-import { createNotification } from '@/lib/notifications'
 
 interface InteractionButtonsProps {
   post: {

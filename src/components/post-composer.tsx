@@ -15,8 +15,6 @@ interface PostComposerProps {
 export function PostComposer({ value, onChange, onSubmit }: PostComposerProps) {
   const [isUploading, setIsUploading] = useState(false)
   const [media, setMedia] = useState<{ type: string; url: string; key: string }[]>([])
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [imageFile, setImageFile] = useState<File | null>(null)
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files

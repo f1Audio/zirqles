@@ -5,14 +5,12 @@ import { useSession } from 'next-auth/react'
 import { Button } from "@/components/ui/button"
 import { Home, Bell, Mail, User } from 'lucide-react'
 import { useMemo } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
-import { AvatarFallback } from '@/components/ui/avatar'
 import { useStreamChat } from '@/contexts/StreamChatContext'
 
 export function Sidebar() {
   const { data: session } = useSession()
-  const queryClient = useQueryClient()
   const { totalUnreadCount } = useStreamChat()
   
   const { data: unreadData } = useQuery({
@@ -40,7 +38,6 @@ export function Sidebar() {
     enabled: !!session?.user?.email
   })
   
-  // Use userData.username instead of session username
   const currentUsername = userData?.username || session?.user?.username
 
   const routes = useMemo(() => [

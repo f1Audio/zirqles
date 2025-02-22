@@ -6,8 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { InteractionButtons } from './interaction-buttons'
 import Link from 'next/link'
-import { useQueryClient, useMutation } from '@tanstack/react-query'
-import { UserData } from '@/queries/user'
+import { useQueryClient } from '@tanstack/react-query'
 import Image from 'next/image'
 import { MoreVertical, Trash2, Heart, MoreHorizontal } from 'lucide-react'
 import { 
@@ -328,32 +327,12 @@ export function Post({
     onInteraction?.(type, post._id)
   }, [post._id, isExpanded, localIsExpanded, onExpand, onInteraction, session?.user?.id, queryClient])
 
-  const handleLocalCommentSubmit = useCallback(() => {
-    if (localCommentContent.trim()) {
-      onInteraction?.('comment', post._id, localCommentContent)
-      setLocalCommentContent('')
-      setLocalIsExpanded(false)
-    }
-  }, [post._id, localCommentContent, onInteraction])
-
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     if (onDelete) {
       onDelete(post._id)
     }
   }, [post._id, onDelete])
-
-  const handleCommentClick = (username?: string) => {
-    if (!isCommentPost(post)) {
-      onExpand?.(isExpanded ? null : post._id)
-    } else {
-      setLocalIsExpanded(!localIsExpanded)
-      
-      if (username) {
-        setLocalCommentContent(`@${username} `)
-      }
-    }
-  }
 
   // Determine if this post should show the comment form and comments
   const shouldShowCommentForm = !isCommentPost(post) ? isExpanded : localIsExpanded

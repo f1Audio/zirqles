@@ -2,12 +2,11 @@
 
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
 import { SettingsPageComponent } from '@/components/settings-page'
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 const SettingsPage = () => {
-  const { data: session, status } = useSession({
+  const { status } = useSession({
     required: true,
     onUnauthenticated() {
       router.push('/login')

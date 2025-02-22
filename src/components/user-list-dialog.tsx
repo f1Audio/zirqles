@@ -13,8 +13,6 @@ interface UserListDialogProps {
 }
 
 export function UserListDialog({ username, type, open, onOpenChange }: UserListDialogProps) {
-  const descriptionId = `user-list-dialog-description-${username}-${type}`
-  
   return (
     <DialogRoot.Root open={open} onOpenChange={onOpenChange}>
       <DialogRoot.Portal>
