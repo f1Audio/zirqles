@@ -132,6 +132,7 @@ export function usePostMutations(session: Session | null) {
         )
       }
     },
+    //eslint-disable-next-line @typescript-eslint/no-unused-vars
     onSuccess: (updatedPost) => {
       // Update all relevant queries with the server response
       queryClient.invalidateQueries({ queryKey: ['posts'] })
@@ -151,7 +152,7 @@ export function usePostMutations(session: Session | null) {
       if (!response.ok) throw new Error('Failed to repost')
       return response.json()
     },
-    onSuccess: (updatedPost) => {
+    onSuccess: (updatedPost: Post) => {
       // Update the main posts cache
       queryClient.setQueryData(['posts'], (oldData: any) => {
         if (!oldData?.pages) return oldData

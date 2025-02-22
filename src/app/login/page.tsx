@@ -1,13 +1,12 @@
 'use client'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { AuthPageComponent } from "@/components/auth-page"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 export default function LoginPage() {
   const { data: session, status } = useSession()
-  const router = useRouter()
+  
 
   useEffect(() => {
     if (status === 'loading') return

@@ -37,7 +37,7 @@ export function UserListDialog({ username, type, open, onOpenChange }: UserListD
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <DialogRoot.Title className="text-xl font-semibold text-cyan-100">
-                  {username}'s {type}
+                  {username}&apos;s {type}
                 </DialogRoot.Title>
               </div>
               <DialogRoot.Close asChild>

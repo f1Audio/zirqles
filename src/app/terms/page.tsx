@@ -74,7 +74,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold mb-3 text-cyan-300">7. Limitation of Liability</h2>
             <p>
-              Zirqles is provided "as is" without warranties of any kind. We are not liable for any damages arising from your use of the service.
+              Zirqles is provided &quot;as is&quot; without warranties of any kind. We are not liable for any damages arising from your use of the service.
             </p>
           </section>
 

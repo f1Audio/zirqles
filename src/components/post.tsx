@@ -183,17 +183,15 @@ const MediaDisplay = ({ media }: { media: Array<{ type: string; url: string }> }
 
 // Update CommentLikeButton to receive optimisticLiked state
 function CommentLikeButton({ 
-  post, 
   onInteraction,
   optimisticLiked
 }: { 
-  post: Post
-  onInteraction: (type: 'like' | 'repost' | 'comment', postId: string) => void 
+  onInteraction: (type: 'like' | 'repost' | 'comment') => void 
   optimisticLiked: boolean
 }) {
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onInteraction('like', post._id)
+    onInteraction('like')
   }
 
   return (
@@ -228,7 +226,17 @@ export function Post({
   const [isHovered, setIsHovered] = useState(false)
   const [localIsExpanded, setLocalIsExpanded] = useState(false)
   const [localCommentContent, setLocalCommentContent] = useState('')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [optimisticLiked, setOptimisticLiked] = useState(false)
   const queryClient = useQueryClient()
+  const userId = session?.user?.id || ''
+
+  // Update optimisticLiked when post.likes changes
+  useEffect(() => {
+    if (isCommentPost(post)) {
+      setOptimisticLiked(post.likes.includes(userId))
+    }
+  }, [post, post.likes, userId])
 
   const prefetchUserData = useCallback(() => {
     if (post.author?.username) {
@@ -244,7 +252,7 @@ export function Post({
   }, [post.author?.username, queryClient])
 
   const handleInteraction = useCallback((type: 'like' | 'repost' | 'comment', postId: string) => {
-    if (!post._id) {
+    if (!postId) {
       console.error('No post ID available for interaction')
       return
     }
@@ -325,7 +333,7 @@ export function Post({
     }
     
     onInteraction?.(type, post._id)
-  }, [post._id, isExpanded, localIsExpanded, onExpand, onInteraction, session?.user?.id, queryClient])
+  }, [post, isExpanded, localIsExpanded, onExpand, onInteraction, session?.user?.id, queryClient])
 
   const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -344,24 +352,16 @@ export function Post({
     ? onCommentChange 
     : setLocalCommentContent
 
+  // Define handleCommentLike unconditionally
+  const handleCommentLike = useCallback((type: 'like' | 'repost' | 'comment') => {
+    if (type === 'like') {
+      setOptimisticLiked(!optimisticLiked)
+    }
+    handleInteraction(type, post._id)
+  }, [optimisticLiked, handleInteraction, post._id])
+
   // For comments, render a simpler view
   if (isCommentPost(post)) {
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const userId = session?.user?.id || ''
-    const isLiked = post.likes.includes(userId)
-    const [optimisticLiked, setOptimisticLiked] = useState(isLiked)
-
-    useEffect(() => {
-      setOptimisticLiked(isLiked)
-    }, [isLiked])
-
-    const handleCommentLike = useCallback((type: 'like' | 'repost' | 'comment', postId: string) => {
-      if (type === 'like') {
-        setOptimisticLiked(!optimisticLiked)
-      }
-      handleInteraction(type, postId)
-    }, [optimisticLiked, handleInteraction])
-
     return (
       <div 
         className="flex items-start space-x-3 py-2 px-1"
@@ -459,7 +459,6 @@ export function Post({
 
             <div className="ml-4">
               <CommentLikeButton 
-                post={post} 
                 onInteraction={handleCommentLike}
                 optimisticLiked={optimisticLiked}
               />

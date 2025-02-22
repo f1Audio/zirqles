@@ -4,10 +4,10 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { useQueryClient } from '@tanstack/react-query'
-import { usePosts, useComments, usePostMutations, useUserMutations, useUserPosts } from '@/queries/posts'
+import { useComments, usePostMutations, useUserMutations, useUserPosts } from '@/queries/posts'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Mail, MapPin, Calendar, Link as LinkIcon, ArrowLeft, Settings } from 'lucide-react'
+import { Mail, MapPin, Calendar, Link as LinkIcon} from 'lucide-react'
 import Link from 'next/link'
 import { LoadingSpinner } from './ui/loading-spinner'
 import { Post } from './post'
@@ -23,34 +23,7 @@ interface ProfilePageProps {
   username: string
 }
 
-interface UserData {
-  _id: string
-  username: string
-  email: string
-  avatar?: string
-  bio?: string
-  location?: string
-  website?: string
-  following?: string[]
-  followers?: string[]
-  createdAt: string
-  updatedAt: string
-  isFollowing?: boolean
-  posts?: {
-    _id: string
-    content: string
-    author: {
-      _id: string
-      username: string
-      avatar?: string
-    }
-    likes: string[]
-    reposts: string[]
-    replies: string[]
-    createdAt: string
-    media?: string[]
-  }[]
-}
+
 
 interface Post {
   _id: string
@@ -64,21 +37,7 @@ interface Post {
   media?: string[]
 }
 
-interface Comment {
-  _id: string
-  content: string
-  author: {
-    _id: string
-    username: string
-    avatar: string
-  }
-  likes: string[]
-  reposts: string[]
-  comments: string[]
-  type: 'comment'
-  depth: number
-  createdAt: string
-}
+
 
 
 function getUniquePostKey(post: any, pageIndex: number) {
@@ -90,7 +49,6 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
   const queryClient = useQueryClient()
   const { likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
   const { followUser } = useUserMutations(session)
-  const [scrollPosition, setScrollPosition] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const [expandedPost, setExpandedPost] = useState<string | null>(null)
@@ -136,20 +94,6 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
 
   // Add a state to track total posts count
   const [totalPosts, setTotalPosts] = useState(0)
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (scrollRef.current) {
-        setScrollPosition(scrollRef.current.scrollTop)
-      }
-    }
-
-    const currentRef = scrollRef.current
-    if (currentRef) {
-      currentRef.addEventListener('scroll', handleScroll, { passive: true })
-      return () => currentRef.removeEventListener('scroll', handleScroll)
-    }
-  }, [])
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {

@@ -91,7 +91,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-3 text-cyan-300">7. Children's Privacy</h2>
+            <h2 className="text-xl font-semibold mb-3 text-cyan-300">7. Children&apos;s Privacy</h2>
             <p>
               Our service is not intended for children under 13. We do not knowingly collect information from children under 13.
             </p>

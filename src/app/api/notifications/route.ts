@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import connectDB from '@/lib/mongodb'
 import { Notification } from '@/models/notification'
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
     await connectDB()
     const session = await getServerSession(authOptions)

@@ -5,7 +5,7 @@ import dbConnect from "@/lib/mongodb"
 import { User } from '@/models/User'
 import bcrypt from 'bcryptjs'
 import type { DefaultSession, DefaultUser } from 'next-auth'
-import type { JWT } from 'next-auth/jwt'
+
 
 declare module 'next-auth' {
   interface Session {
@@ -34,6 +34,10 @@ declare module 'next-auth/jwt' {
     email: string
     avatar?: string
   }
+}
+
+if (!process.env.NEXTAUTH_URL && process.env.NODE_ENV === 'production') {
+  throw new Error('NEXTAUTH_URL must be set in production')
 }
 
 export const authOptions: NextAuthOptions = {
@@ -94,7 +98,7 @@ export const authOptions: NextAuthOptions = {
     signOut: '/',
   },
   callbacks: {
-    async jwt({ token, user, account, trigger, session }) {
+    async jwt({ token, user, trigger, session }) {
       if (trigger === 'update' && session?.user) {
         return {
           ...token,
@@ -142,7 +146,7 @@ export const authOptions: NextAuthOptions = {
           
           if (!existingUser) {
             // Generate username from email - ensure lowercase and remove invalid characters
-            let baseUsername = user.email?.split('@')[0]
+            const baseUsername = user.email?.split('@')[0]
               .toLowerCase()
               .replace(/[^a-z0-9]/g, '') || ''
             
@@ -177,18 +181,19 @@ export const authOptions: NextAuthOptions = {
       return true
     },
   },
-  debug: process.env.NODE_ENV === 'development',
+  debug: true,
   secret: process.env.NEXTAUTH_SECRET,
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === 'production' 
-        ? '__Secure-next-auth.session-token'
-        : 'next-auth.session-token',
+      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
+        domain: process.env.NODE_ENV === 'production' 
+          ? process.env.VERCEL_URL 
+          : undefined
       },
     },
   },

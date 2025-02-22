@@ -19,7 +19,7 @@ interface InteractionButtonsProps {
   authorUsername?: string
 }
 
-export function InteractionButtons({ post, onInteraction, size = 'sm', authorUsername }: InteractionButtonsProps) {
+export function InteractionButtons({ post, onInteraction, size = 'sm' }: InteractionButtonsProps) {
   const { data: session } = useSession()
   const userId = session?.user?.id || ''
   const isLiked = post.likes.includes(userId)

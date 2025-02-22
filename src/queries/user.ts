@@ -59,7 +59,7 @@ export function useUpdateAvatar() {
   const { data: session, update } = useSession()
 
   return useMutation({
-    mutationFn: async ({ file, oldAvatar, userId }: UpdateAvatarParams) => {
+    mutationFn: async ({ file, oldAvatar }: UpdateAvatarParams) => {
       // Get presigned URL
       const presignedResponse = await fetch('/api/users/avatar', {
         method: 'POST',
@@ -178,22 +178,3 @@ export function useUpdateAvatar() {
   })
 }
 
-// Helper function to update avatars in posts and replies
-function updatePostAvatar(post: any, userId: string, newAvatar: string) {
-  if (!post) return post
-  
-  return {
-    ...post,
-    author: post.author?._id === userId
-      ? { ...post.author, avatar: newAvatar }
-      : post.author,
-    replies: Array.isArray(post.replies)
-      ? post.replies.map((reply: any) => ({
-          ...reply,
-          author: reply.author?._id === userId
-            ? { ...reply.author, avatar: newAvatar }
-            : reply.author
-        }))
-      : post.replies
-  }
-} 

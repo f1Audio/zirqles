@@ -76,7 +76,7 @@ export async function POST(
 
     // Create all notifications
     if (notifications.length > 0) {
-      const createdNotifications = await Notification.insertMany(notifications)
+       await Notification.insertMany(notifications)
     }
 
     // Return the populated comment

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useMemo } from 'react'
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
 import { StreamChat, Channel } from 'stream-chat'
 import { SessionProvider, useSession } from 'next-auth/react'
 import { getStreamUserToken } from '@/lib/stream'
@@ -82,7 +82,7 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
           })
 
           // Listen for notification.mark_read events
-          streamClient.on('notification.mark_read', (event) => {
+          streamClient.on('notification.mark_read', () => {
             // Update total unread count when a channel is marked as read
             const filter = { type: 'messaging', members: { $in: [session.user.id] } }
             streamClient.queryChannels(filter).then(channels => {
@@ -120,9 +120,9 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
       setUnreadCount(0)
       setTotalUnreadCount(0)
     }
-  }, [session?.user?.id])
+  }, [session?.user?.id, session?.user?.name, session?.user?.username, session?.user?.image])
 
-  async function createChat(targetUserId: string) {
+  const createChat = useCallback(async (targetUserId: string) => {
     try {
       if (!client || !session?.user) {
         console.error("Client or session not available")
@@ -186,7 +186,7 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
       
       throw error
     }
-  }
+  }, [client, session?.user])
 
   const value = useMemo(() => ({
     client,
@@ -195,7 +195,7 @@ function StreamChatProviderWithSession({ children }: { children: React.ReactNode
     createChat,
     unreadCount,
     totalUnreadCount
-  }), [client, activeChannel, unreadCount, totalUnreadCount])
+  }), [client, activeChannel, unreadCount, totalUnreadCount, createChat])
 
   return (
     <StreamChatContext.Provider value={value}>

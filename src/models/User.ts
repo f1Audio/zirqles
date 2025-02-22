@@ -1,4 +1,4 @@
-import mongoose, { Model, models, Schema } from 'mongoose'
+import mongoose, { Model, Schema } from 'mongoose'
 
 export interface IUser {
   _id: mongoose.Types.ObjectId;

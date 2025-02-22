@@ -4,8 +4,6 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import dbConnect from '@/lib/mongodb'
 import { User } from '@/models/User'
 import { Post } from '@/models/Post'
-import { s3Client } from '@/lib/s3';
-import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { StreamChat } from 'stream-chat'
 import { deleteUserFolderFromS3 } from '@/lib/s3';
 import { Notification } from '@/models/notification'

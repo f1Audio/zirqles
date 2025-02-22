@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import dbConnect from '@/lib/mongodb'
 import { Post } from '@/models/Post'
-import { User } from '@/models/User'
 import { Types } from 'mongoose'
 
 export async function POST(

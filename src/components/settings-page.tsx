@@ -327,7 +327,8 @@ export function SettingsPageComponent() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Password update error:', error)
       toast.error('Failed to update password')
     } finally {
       setIsPasswordUpdating(false)

@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { useQueryClient, useQuery } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { usePosts, useComments, usePostMutations } from '@/queries/posts'
 import { Navbar } from './layout/navbar'
 import { Sidebar } from './layout/sidebar'
@@ -27,7 +26,7 @@ function getUniquePostKey(post: any, pageIndex: number) {
 export function HomePageComponent() {
   // Auth & Router
   const { data: session } = useSession()
-  const router = useRouter()
+
   const queryClient = useQueryClient()
 
   // Local State
@@ -45,18 +44,7 @@ export function HomePageComponent() {
     isFetchingNextPage
   } = usePosts()
   const { data: comments = [] } = useComments(expandedPost)
-  const { createPost, likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
-
-  // Add the user query
-  const { data: userData } = useQuery({
-    queryKey: ['user'],
-    queryFn: async () => {
-      const response = await fetch('/api/user')
-      if (!response.ok) throw new Error('Failed to fetch user data')
-      return response.json()
-    },
-    enabled: !!session?.user?.email
-  })
+  const {likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetchingNextPage) {
@@ -146,17 +134,7 @@ export function HomePageComponent() {
     }
   }
 
-  // Prefetch comments on post hover
-  const handlePostHover = (postId: string) => {
-    queryClient.prefetchQuery({
-      queryKey: ['comments', postId],
-      queryFn: async () => {
-        const response = await fetch(`/api/posts/${postId}/comments`)
-        if (!response.ok) throw new Error('Failed to fetch comments')
-        return response.json()
-      }
-    })
-  }
+  
 
   const handleDelete = async (postId: string) => {
     try {

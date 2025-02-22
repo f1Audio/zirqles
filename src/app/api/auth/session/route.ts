@@ -5,15 +5,15 @@ import dbConnect from '@/lib/mongodb'
 import { User } from '@/models/User'
 
 // Add support for both GET and POST methods
-export async function GET(request: Request) {
-  return handleSession(request)
+export async function GET() {
+  return handleSession()
 }
 
-export async function POST(request: Request) {
-  return handleSession(request)
+export async function POST() {
+  return handleSession()
 }
 
-async function handleSession(request: Request) {
+async function handleSession() {
   try {
     const session = await getServerSession(authOptions)
     

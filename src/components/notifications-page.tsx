@@ -151,22 +151,7 @@ export function NotificationsPageComponent() {
     return notifications.filter((notification: Notification) => notification.type === type)
   }
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'like':
-        return <Heart className="h-4 w-4 text-pink-400" />
-      case 'comment':
-        return <MessageCircle className="h-4 w-4 text-cyan-400" />
-      case 'follow':
-        return <UserPlus className="h-4 w-4 text-green-400" />
-      case 'system':
-        return <Zap className="h-4 w-4 text-yellow-400" />
-      case 'mention':
-        return <ArrowRight className="h-4 w-4 text-cyan-400" />
-      default:
-        return <Bell className="h-4 w-4 text-cyan-400" />
-    }
-  }
+
 
   const filters = [
     { value: 'all', label: 'All', icon: <Bell className="h-4 w-4" /> },

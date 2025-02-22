@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { signIn, useSession } from 'next-auth/react'
+import { signIn } from 'next-auth/react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -138,6 +138,7 @@ export function AuthPageComponent() {
         }
       }
     } catch (error) {
+      console.error('Auth error:', error)
       toast.error('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)

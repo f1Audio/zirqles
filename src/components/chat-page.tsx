@@ -82,7 +82,7 @@ export function ChatPageComponent() {
       if (client) {
         const filter = { type: 'messaging', members: { $in: [client.userID || ''] } }
         const channels = await client.queryChannels(filter)
-        const total = channels.reduce((acc, channel) => acc + channel.state.unreadCount, 0)
+        channels.reduce((acc, channel) => acc + channel.state.unreadCount, 0)
         // The totalUnreadCount will be automatically updated through the StreamChatContext
       }
     } catch (error) {
