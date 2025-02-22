@@ -71,15 +71,6 @@ export function AuthPageComponent() {
 
   async function onSubmit(event: React.SyntheticEvent, mode: 'login' | 'register') {
     event.preventDefault()
-    
-    if (mode === 'register') {
-      const validation = validatePassword(password)
-      if (!validation.isValid) {
-        toast.error(validation.missing.join('\n'))
-        return
-      }
-    }
-
     setIsLoading(true)
 
     try {
@@ -91,19 +82,27 @@ export function AuthPageComponent() {
         })
 
         if (result?.error) {
+          console.error('Login error:', result.error)
           toast.error('Login failed. Please check your credentials.')
-        } else {
-          const urlParams = new URLSearchParams(window.location.search)
-          const callbackUrl = urlParams.get('callbackUrl') || '/'
-          
-          // Force a session update
-          await fetch('/api/auth/session')
+          return
+        }
+
+        // Force a session update
+        try {
+          const sessionResponse = await fetch('/api/auth/session')
+          if (!sessionResponse.ok) {
+            throw new Error('Failed to fetch session')
+          }
           
           // Wait for session to be updated
-          await new Promise(resolve => setTimeout(resolve, 500))
+          await new Promise(resolve => setTimeout(resolve, 1000))
           
-          // Use window.location for a full page navigation
+          const urlParams = new URLSearchParams(window.location.search)
+          const callbackUrl = urlParams.get('callbackUrl') || '/'
           window.location.href = decodeURIComponent(callbackUrl)
+        } catch (error) {
+          console.error('Session fetch error:', error)
+          toast.error('Failed to establish session. Please try again.')
         }
       } else {
         const response = await fetch('/api/auth/register', {

@@ -20,6 +20,10 @@ const nextConfig = {
         pathname: '/**',
       }
     ],
+    domains: [
+      // Add any external image domains you're using
+      'your-domain.com'
+    ]
   },
   // Add headers for security
   async headers() {
@@ -38,6 +42,15 @@ const nextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
+          },
+          // Add these headers
+          {
+            key: 'Set-Cookie',
+            value: 'Path=/; Secure; SameSite=Lax'
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains'
           },
         ],
       },

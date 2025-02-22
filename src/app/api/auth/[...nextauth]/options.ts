@@ -190,9 +190,9 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
         domain: process.env.NODE_ENV === 'production' 
-          ? process.env.VERCEL_URL 
+          ? process.env.NEXT_PUBLIC_DOMAIN
           : undefined
       },
     },

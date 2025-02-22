@@ -5,14 +5,13 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ 
     req,
     secret: process.env.NEXTAUTH_SECRET,
-    cookieName: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`
   })
   
   const { pathname } = req.nextUrl
 
   // Always allow these paths
   if (
-    pathname.includes('/api/') ||
+    pathname.includes('/api/auth') ||
     pathname.startsWith('/login') ||
     pathname.includes('/_next/') ||
     pathname.includes('/favicon.ico') ||
@@ -40,12 +39,13 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
+     * Match all request paths except:
+     * 1. /api/auth/* (authentication routes)
+     * 2. /_next/* (Next.js internals)
+     * 3. /fonts/* (static font files)
+     * 4. /images/* (static image files)
+     * 5. /favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api/auth|_next|fonts|images|favicon.ico).*)',
   ],
 }
