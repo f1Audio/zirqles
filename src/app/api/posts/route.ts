@@ -137,8 +137,8 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { content, media } = body
     
-    if (!content?.trim() && (!media || media.length === 0)) {
-      return NextResponse.json({ error: 'Content or media is required' }, { status: 400 })
+    if (!media?.length && !content?.trim()) {
+      return NextResponse.json({ error: 'Either content or media is required' }, { status: 400 })
     }
 
     await dbConnect()
@@ -155,7 +155,7 @@ export async function POST(req: Request) {
     })) : []
 
     const postData = {
-      content: content.trim() || '',
+      content: content?.trim() || '',
       author: user._id,
       media: mediaArray,
       likes: [],

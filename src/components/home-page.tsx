@@ -56,13 +56,14 @@ export function HomePageComponent() {
 
   // Event Handlers
   const handlePost = async (media?: { type: string; url: string; key: string }[]) => {
+    // Allow empty content if media exists
     if (!newPost.trim() && (!media || media.length === 0)) {
       toast.error('Please add some content or media to your post')
       return
     }
 
     const payload = {
-      content: newPost,
+      content: newPost || '', // Allow empty content
       media: media || []
     }
 

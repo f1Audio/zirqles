@@ -20,13 +20,20 @@ export interface IPost {
 }
 
 const PostSchema = new mongoose.Schema<IPost>({
-  content: { type: String, required: true },
+  content: {
+    type: String,
+    required: function(this: any) {
+      // Content is required only if there's no media
+      return !this.media || this.media.length === 0;
+    },
+    default: ''
+  },
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   media: {
     type: [{
-      type: { type: String, enum: ['image', 'video'], required: true },
-      url: { type: String, required: true },
-      key: { type: String, required: true }
+      type: { type: String, enum: ['image', 'video'] },
+      url: String,
+      key: String
     }],
     default: []
   },
@@ -48,6 +55,15 @@ PostSchema.index({ rootId: 1, createdAt: -1 });
 PostSchema.pre('save', function(next) {
   if (this.media === undefined) {
     this.media = [];
+  }
+  next();
+});
+
+// Add a validation middleware
+PostSchema.pre('validate', function(next) {
+  // If neither content nor media is provided, throw an error
+  if ((!this.content || !this.content.trim()) && (!this.media || this.media.length === 0)) {
+    this.invalidate('content', 'Either content or media is required');
   }
   next();
 });

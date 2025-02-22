@@ -212,7 +212,7 @@ export function PostComposer({ value, onChange, onSubmit }: PostComposerProps) {
 
         <Button
           onClick={handleSubmit}
-          disabled={!value.trim() && media.length === 0}
+          disabled={(!value.trim() && media.length === 0) || isUploading}
           className="bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white font-medium rounded-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-md hover:shadow-cyan-500/20"
         >
           {isUploading ? 'Uploading...' : 'Post'}
