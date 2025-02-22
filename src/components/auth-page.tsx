@@ -165,7 +165,7 @@ export function AuthPageComponent() {
               Welcome to Zirqles
             </CardTitle>
             <CardDescription className="text-center text-sm sm:text-base text-cyan-300/70">
-              Connect with the digital underground
+              Share your thoughts and connect with like-minded individuals
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6 sm:p-8">
