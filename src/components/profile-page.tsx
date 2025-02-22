@@ -123,14 +123,15 @@ export function ProfilePageComponent({ username }: ProfilePageProps) {
       const response = await fetch(`/api/users/${username}`)
       if (!response.ok) {
         if (response.status === 404) {
-          router.push('/404')
+          router.replace('/not-found')
           return null
         }
         throw new Error('Failed to fetch profile data')
       }
       return response.json()
     },
-    enabled: !!username
+    enabled: !!username,
+    retry: false
   })
 
   // Add a state to track total posts count

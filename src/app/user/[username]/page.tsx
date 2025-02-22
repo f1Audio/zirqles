@@ -16,7 +16,7 @@ export default function UserProfilePage() {
     
     // Check for missing username parameter
     if (!params?.username) {
-      router.push('/404')
+      router.push('/not-found')
       return
     }
 

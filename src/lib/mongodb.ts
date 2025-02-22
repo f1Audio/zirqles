@@ -12,6 +12,8 @@ const options: mongoose.ConnectOptions = {
   maxPoolSize: 10,
   serverSelectionTimeoutMS: 5000,
   socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
+  maxIdleTimeMS: 10000,
 }
 
 interface MongooseCache {
