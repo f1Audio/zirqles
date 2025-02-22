@@ -42,6 +42,21 @@ const nextConfig = {
         ],
       },
     ]
+  },
+  // Add this configuration
+  experimental: {
+    missingSuspenseWithCSRError: false,
+  },
+  // Configure dynamic routes
+  async rewrites() {
+    return {
+      fallback: [
+        {
+          source: '/api/:path*',
+          destination: '/api/:path*',
+        },
+      ],
+    }
   }
 }
 

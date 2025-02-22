@@ -4,6 +4,9 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import connectDB from '@/lib/mongodb'
 import { Notification } from '@/models/notification'
 
+// Add this export to mark the route as dynamic
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     await connectDB()

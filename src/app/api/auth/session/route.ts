@@ -4,6 +4,9 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import dbConnect from '@/lib/mongodb'
 import { User } from '@/models/User'
 
+// Add this export to mark the route as dynamic
+export const dynamic = 'force-dynamic'
+
 // Add support for both GET and POST methods
 export async function GET() {
   return handleSession()

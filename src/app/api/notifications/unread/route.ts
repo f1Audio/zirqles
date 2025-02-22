@@ -4,14 +4,17 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import connectDB from '@/lib/mongodb'
 import { Notification } from '@/models/notification'
 
+// Mark route as dynamic
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+
 export async function GET() {
   try {
+    await connectDB()
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ count: 0 })
     }
-
-    await connectDB()
 
     const count = await Notification.countDocuments({
       recipient: session.user.id,
@@ -21,6 +24,6 @@ export async function GET() {
     return NextResponse.json({ count })
   } catch (error) {
     console.error('Error fetching unread notifications count:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ count: 0 })
   }
 } 
