@@ -23,7 +23,7 @@ export function PostPageComponent({ postId }: PostPageProps) {
   const { likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
 
   // Fetch the individual post
-  const { data: post, isLoading, error, refetch: refetchPost } = useQuery({
+  const { data: post, isLoading, refetch: refetchPost } = useQuery({
     queryKey: ['post', postId],
     queryFn: async () => {
       const response = await fetch(`/api/posts/${postId}`)
