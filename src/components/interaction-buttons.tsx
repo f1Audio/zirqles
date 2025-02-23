@@ -1,5 +1,5 @@
 import { Button } from "./ui/button"
-import { MessageCircle, Repeat2, Heart, Share } from 'lucide-react'
+import { MessageCircle, Heart, Share } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
@@ -77,7 +77,7 @@ export function InteractionButtons({ post, onInteraction, size = 'sm' }: Interac
     )
   }
 
-  // Show all buttons for posts
+  // Show comment and like buttons for posts (removed repost button)
   return (
     <div className="flex items-center mt-4 text-cyan-400 text-sm">
       <div className="flex items-center gap-4">
@@ -92,21 +92,6 @@ export function InteractionButtons({ post, onInteraction, size = 'sm' }: Interac
         >
           <MessageCircle className="h-4 w-4 group-hover:animate-pulse" />
           <span className="ml-1">{post.comments?.length || 0}</span>
-        </Button>
-
-        <Button 
-          variant="ghost" 
-          size={size}
-          onClick={(e) => {
-            e.stopPropagation()
-            onInteraction('repost', post._id)
-          }}
-          className={`rounded-xl hover:text-cyan-300 group transition-all duration-300 ease-in-out hover:scale-[1.02] overflow-hidden p-0 ${
-            post.reposts.includes(userId) ? 'text-green-400 hover:text-green-300' : 'hover:text-green-400/90'
-          }`}
-        >
-          <Repeat2 className="h-4 w-4 group-hover:animate-pulse" />
-          <span className="ml-1">{post.reposts.length}</span>
         </Button>
 
         <Button 
