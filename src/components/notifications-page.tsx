@@ -116,6 +116,8 @@ export function NotificationsPageComponent() {
         method: 'DELETE'
       })
       if (!response.ok) throw new Error('Failed to clear notifications')
+      const data = await response.json()
+      return data
     },
     onMutate: async () => {
       // Cancel any outgoing refetches
@@ -136,8 +138,12 @@ export function NotificationsPageComponent() {
       queryClient.setQueryData(['notifications'], context?.previousNotifications)
       toast.error('Failed to clear notifications')
     },
-    onSuccess: () => {
-      toast.success('All notifications cleared')
+    onSuccess: (data) => {
+      if (data.deletedCount === 0) {
+        toast.info('No notifications to clear')
+      } else {
+        toast.success(`Cleared ${data.deletedCount} notifications`)
+      }
     },
     onSettled: () => {
       // Always refetch after error or success

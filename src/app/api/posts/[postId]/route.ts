@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/options'
 import dbConnect from '@/lib/mongodb'
 import { Post } from '@/models/Post'
 import { deleteMediaFromS3 } from '@/lib/s3'
+import { Notification } from '@/models/notification'
 
 interface MongoPost {
   _id: any;
@@ -117,6 +118,18 @@ export async function GET(
   }
 }
 
+// Add this helper function outside the route handlers
+async function getAllNestedCommentIds(postId: string): Promise<string[]> {
+  const comments = await Post.find({ parentPost: postId })
+  const nestedIds = await Promise.all(
+    comments.map(async (comment) => {
+      const nested = await getAllNestedCommentIds(comment._id.toString())
+      return [comment._id.toString(), ...nested]
+    })
+  )
+  return nestedIds.flat()
+}
+
 export async function DELETE(
   req: Request,
   { params }: { params: { postId: string } }
@@ -145,6 +158,14 @@ export async function DELETE(
       await deleteMediaFromS3(mediaKeys)
     }
 
+    // Delete all notifications related to this post
+    await Notification.deleteMany({
+      $or: [
+        { post: post._id },
+        { post: { $in: await getAllNestedCommentIds(post._id) } }
+      ]
+    })
+
     // Remove comment reference from parent post if this is a comment
     if (post.parentPost) {
       await Post.updateOne(
@@ -169,7 +190,7 @@ export async function DELETE(
     // Return whether it was a comment or post based on the type field
     return NextResponse.json({ 
       message: post.type === 'comment' ? 'Comment deleted successfully' : 'Post deleted successfully',
-      type: post.type // This will be either 'comment' or 'post'
+      type: post.type
     })
   } catch (error) {
     console.error('Error in delete API:', error)

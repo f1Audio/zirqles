@@ -100,9 +100,20 @@ export async function DELETE() {
     }
 
     await connectDB()
-    await Notification.deleteMany({ recipient: session.user.id })
+    
+    // Delete all notifications where the user is the recipient
+    const result = await Notification.deleteMany({ 
+      recipient: session.user.id 
+    })
 
-    return NextResponse.json({ message: 'Notifications cleared' })
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ message: 'No notifications to clear' })
+    }
+
+    return NextResponse.json({ 
+      message: 'Notifications cleared',
+      deletedCount: result.deletedCount
+    })
   } catch (error) {
     console.error('Error clearing notifications:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
