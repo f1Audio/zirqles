@@ -10,6 +10,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useComments, usePostMutations } from '@/queries/posts'
 import { useSession } from 'next-auth/react'
+import { Button } from '@/components/ui/button'
 
 interface PostPageProps {
   postId: string
@@ -18,17 +19,24 @@ interface PostPageProps {
 export function PostPageComponent({ postId }: PostPageProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [commentContent, setCommentContent] = useState('')
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const { likePost, repostPost, commentOnPost, deletePost } = usePostMutations(session)
 
   // Fetch the individual post
-  const { data: post, isLoading, refetch: refetchPost } = useQuery({
+  const { data: post, isLoading, error, refetch: refetchPost } = useQuery({
     queryKey: ['post', postId],
     queryFn: async () => {
       const response = await fetch(`/api/posts/${postId}`)
-      if (!response.ok) throw new Error('Failed to fetch post')
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('unauthorized')
+        }
+        throw new Error('Failed to fetch post')
+      }
       return response.json()
-    }
+    },
+    // Disable the query if not authenticated
+    enabled: status === 'authenticated'
   })
 
   // Fetch comments for the post
@@ -96,6 +104,46 @@ export function PostPageComponent({ postId }: PostPageProps) {
     }
   }
 
+  // Show loading state while checking authentication
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-cyan-300 font-mono">
+        <Navbar onSearchOpen={() => setIsSearchOpen(true)} />
+        <div className="min-h-[calc(100vh-4rem)]">
+          <Sidebar />
+          <main className="md:pl-64 h-[calc(100vh-4rem)]">
+            <div className="flex items-center justify-center h-full">
+              <LoadingSpinner />
+            </div>
+          </main>
+        </div>
+        <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+      </div>
+    )
+  }
+
+  // Show login prompt if not authenticated
+  if (status === 'unauthenticated') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-cyan-300 font-mono flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-cyan-300 mb-4">You need to be signed in to view this post</p>
+          <Button 
+            onClick={() => window.location.href = '/login'}
+            className="bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 
+              hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 
+              text-white font-medium rounded-full px-8 py-2
+              transition-all duration-300 ease-in-out hover:scale-105
+              shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40"
+          >
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading spinner while fetching post
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-cyan-300 font-mono">

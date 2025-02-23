@@ -2,6 +2,7 @@ import { Button } from "./ui/button"
 import { MessageCircle, Repeat2, Heart, Share } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 
 interface InteractionButtonsProps {
   post: {
@@ -38,6 +39,19 @@ export function InteractionButtons({ post, onInteraction, size = 'sm' }: Interac
       await onInteraction('like', post._id)
     } catch (error) {
       console.error('Error handling like:', error)
+    }
+  }
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const postUrl = `${window.location.origin}/post/${post._id}`
+    
+    try {
+      await navigator.clipboard.writeText(postUrl)
+      toast.success('Link copied to clipboard')
+    } catch (error) {
+      console.error('Failed to copy link:', error)
+      toast.error('Failed to copy link')
     }
   }
 
@@ -114,6 +128,7 @@ export function InteractionButtons({ post, onInteraction, size = 'sm' }: Interac
         <Button 
           variant="ghost" 
           size={size}
+          onClick={handleShare}
           className="rounded-xl hover:text-cyan-300 group transition-all duration-300 ease-in-out hover:scale-[1.02] overflow-hidden p-0"
         >
           <Share className="h-4 w-4 group-hover:animate-pulse" />

@@ -33,6 +33,11 @@ export async function GET(
   { params }: { params: { postId: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     await dbConnect()
 
     const post = await Post.findById(params.postId)
