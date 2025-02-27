@@ -119,15 +119,15 @@ export function AvatarCropper({ imageUrl, onCropComplete, onCancel, aspectRatio 
     <DialogRoot.Root open={true} onOpenChange={() => !isProcessing && onCancel()}>
       <DialogRoot.Portal>
         <DialogRoot.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
-        <DialogRoot.Content className="fixed left-[50%] top-[50%] max-h-[85vh] w-[95vw] sm:w-[90vw] max-w-[550px] translate-x-[-50%] translate-y-[-50%] rounded-2xl bg-gray-900/95 shadow-2xl focus:outline-none border border-cyan-500/30 backdrop-blur-xl overflow-hidden">
-          <DialogRoot.Title className="text-cyan-100 text-xl p-6 pb-4">
+        <DialogRoot.Content className="fixed left-[50%] top-[50%] max-h-[95vh] w-[95vw] sm:w-[90vw] max-w-[550px] translate-x-[-50%] translate-y-[-50%] rounded-2xl bg-gray-900/95 shadow-2xl focus:outline-none border border-cyan-500/30 backdrop-blur-xl overflow-hidden flex flex-col">
+          <DialogRoot.Title className="text-cyan-100 text-xl p-4 pb-2 sm:p-6 sm:pb-4">
             Crop Your Avatar
           </DialogRoot.Title>
           <DialogRoot.Description className="sr-only">
             Crop and adjust your profile picture
           </DialogRoot.Description>
           
-          <div className="relative w-full h-[400px] px-6 rounded-2xl overflow-hidden">
+          <div className="relative w-full h-[250px] sm:h-[400px] px-4 sm:px-6 rounded-2xl overflow-hidden">
             <Cropper
               image={imageUrl}
               crop={crop}
@@ -149,7 +149,7 @@ export function AvatarCropper({ imageUrl, onCropComplete, onCancel, aspectRatio 
             />
           </div>
 
-          <div className="flex items-center gap-3 px-6 mt-4 mb-4">
+          <div className="flex items-center gap-3 px-4 sm:px-6 mt-2 sm:mt-4">
             <span className="text-sm text-cyan-300 min-w-16">Zoom:</span>
             <input
               type="range"
@@ -162,19 +162,19 @@ export function AvatarCropper({ imageUrl, onCropComplete, onCancel, aspectRatio 
             />
           </div>
 
-          <div className="flex gap-3 p-6 pt-2">
+          <div className="flex gap-3 p-4 sm:p-6 pt-2">
             <Button
               variant="outline"
               onClick={onCancel}
               disabled={isProcessing}
-              className="flex-1 bg-transparent border border-cyan-500/50 text-white hover:text-white hover:bg-cyan-500/20 rounded-xl py-4 text-base font-medium hover:scale-105 transition-all duration-300"
+              className="flex-1 bg-transparent border border-cyan-500/50 text-white hover:text-white hover:bg-cyan-500/20 rounded-xl py-3 sm:py-4 text-base font-medium hover:scale-105 transition-all duration-300"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSave}
               disabled={isProcessing}
-              className="flex-1 bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white rounded-xl py-4 text-base font-medium hover:scale-105 transition-all duration-300"
+              className="flex-1 bg-gradient-to-r from-cyan-700 via-cyan-600 to-cyan-500 hover:from-cyan-600 hover:via-cyan-500 hover:to-cyan-400 text-white rounded-xl py-3 sm:py-4 text-base font-medium hover:scale-105 transition-all duration-300"
             >
               {isProcessing ? (
                 <>
