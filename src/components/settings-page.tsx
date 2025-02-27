@@ -21,6 +21,7 @@ import { useUpdateAvatar } from '../queries/user'
 import { validatePassword } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { AlertCircle } from "lucide-react"
+import { AvatarCropper } from './avatar-cropper'
 
 export function SettingsPageComponent() {
   const router = useRouter()
@@ -46,6 +47,7 @@ export function SettingsPageComponent() {
   const [passwordTouched, setPasswordTouched] = useState(false)
   const [passwordRequirements, setPasswordRequirements] = useState<string[]>([])
   const [name, setName] = useState("")
+  const [tempImageUrl, setTempImageUrl] = useState<string | null>(null)
 
   // Modified useEffect to handle loading state better
   useEffect(() => {
@@ -117,15 +119,21 @@ export function SettingsPageComponent() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Create a temporary URL for the cropper
+    const tempUrl = URL.createObjectURL(file);
+    setTempImageUrl(tempUrl);
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
     try {
       const toastId = toast.loading('Updating profile picture...');
 
-      // Optimize image
-      const optimizedImage = await optimizeImage(file);
+      // Convert blob to File
+      const croppedFile = new File([croppedBlob], 'avatar.jpg', { type: 'image/jpeg' });
       
       // Update avatar through mutation
       const result = await updateAvatarMutation.mutateAsync({
-        file: optimizedImage as File,
+        file: croppedFile,
         oldAvatar: avatar,
         userId: session?.user?.id as string
       });
@@ -159,6 +167,7 @@ export function SettingsPageComponent() {
       }
 
       toast.success('Profile picture updated successfully', { id: toastId });
+      setTempImageUrl(null);
 
     } catch (error) {
       console.error('Error updating avatar:', error);
@@ -166,65 +175,9 @@ export function SettingsPageComponent() {
     }
   };
 
-  // Helper function to optimize image
-  async function optimizeImage(file: File): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      img.onload = () => {
-        // Calculate new dimensions (max 400x400)
-        const maxSize = 400;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxSize) {
-            height = Math.round(height * (maxSize / width));
-            width = maxSize;
-          }
-        } else {
-          if (height > maxSize) {
-            width = Math.round(width * (maxSize / height));
-            height = maxSize;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        // Draw and optimize
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                // Clean up
-                URL.revokeObjectURL(img.src);
-                resolve(blob);
-              } else {
-                reject(new Error('Failed to optimize image'));
-              }
-            },
-            'image/jpeg',
-            0.8
-          );
-        } else {
-          reject(new Error('Failed to get canvas context'));
-        }
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        reject(new Error('Failed to load image'));
-      };
-
-      // Create object URL
-      const objectUrl = URL.createObjectURL(file);
-      img.src = objectUrl;
-    });
-  }
+  const handleCropCancel = () => {
+    setTempImageUrl(null);
+  };
 
   const handleProfileUpdate = async () => {
     try {
@@ -607,6 +560,15 @@ export function SettingsPageComponent() {
       </div>
 
       <SearchDialog open={isSearchOpen} onOpenChange={setIsSearchOpen} />
+
+      {tempImageUrl && (
+        <AvatarCropper
+          imageUrl={tempImageUrl}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+          aspectRatio={1}
+        />
+      )}
     </div>
   )
 }
