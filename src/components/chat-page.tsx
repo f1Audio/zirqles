@@ -95,7 +95,7 @@ export function ChatPageComponent() {
   }
 
   return (
-    <div className="min-h-screen max-h-screen overflow-hidden flex items-start justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="h-[100dvh] overflow-hidden flex items-start justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="w-full h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] mt-16 lg:max-w-7xl lg:h-[calc(100dvh-12rem)] lg:mt-20 lg:mb-8 lg:mx-auto lg:p-4">
         <div className="bg-gray-800/50 backdrop-blur-xl border-0 lg:border lg:border-cyan-500/30 overflow-hidden h-full lg:rounded-2xl">
           <div className="h-full flex flex-col">
@@ -103,10 +103,12 @@ export function ChatPageComponent() {
               <div className="flex h-full relative overflow-hidden">
                 {/* Channel List Sidebar */}
                 <div className={`
+                  h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] lg:h-full
                   lg:w-64 lg:block lg:border-r lg:border-cyan-500/30
                   ${showMobileChat ? 'hidden' : 'w-full'} 
                   transition-all duration-300 ease-in-out
                   bg-gray-900/50 lg:bg-transparent
+                  overflow-y-auto
                 `}>
                   <div className="p-4 border-b border-cyan-500/30">
                     <div className="flex items-center justify-between">
