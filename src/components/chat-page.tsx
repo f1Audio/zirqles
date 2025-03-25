@@ -32,6 +32,21 @@ export function ChatPageComponent() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [showMobileChat, setShowMobileChat] = useState(false)
 
+  useEffect(() => {
+    // Prevent viewport shifting when virtual keyboard appears
+    const metaViewport = document.querySelector('meta[name=viewport]');
+    if (metaViewport) {
+      metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, height=device-height');
+    }
+    
+    return () => {
+      // Reset viewport meta tag when component unmounts
+      if (metaViewport) {
+        metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+      }
+    };
+  }, []);
+
   if (!client) {
     return null
   }
@@ -93,21 +108,6 @@ export function ChatPageComponent() {
   const handleBackToList = () => {
     setShowMobileChat(false)
   }
-
-  useEffect(() => {
-    // Prevent viewport shifting when virtual keyboard appears
-    const metaViewport = document.querySelector('meta[name=viewport]');
-    if (metaViewport) {
-      metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, height=device-height');
-    }
-    
-    return () => {
-      // Reset viewport meta tag when component unmounts
-      if (metaViewport) {
-        metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
-      }
-    };
-  }, []);
 
   return (
     <div className="h-[100dvh] overflow-hidden flex items-start justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
