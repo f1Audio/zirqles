@@ -33,6 +33,7 @@ body {
   border-radius: 0.5rem !important;
   border: 1px solid rgba(34, 211, 238, 0.3) !important; /* cyan-400 with opacity */
   margin: 1rem !important;
+  font-size: 16px !important;
 }
 
 .str-chat__input-flat:focus-within {
@@ -43,6 +44,7 @@ body {
   background: transparent !important;
   padding-bottom: 1rem !important;
   color: rgb(103 232 249) !important; /* cyan-300 */
+  font-size: 16px !important;
 }
 
 .str-chat__message-input:focus {
