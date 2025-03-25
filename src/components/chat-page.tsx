@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useStreamChat } from '@/contexts/StreamChatContext'
 import {
   Chat,
@@ -31,21 +31,6 @@ export function ChatPageComponent() {
   const { client, activeChannel, setActiveChannel, createChat } = useStreamChat()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [showMobileChat, setShowMobileChat] = useState(false)
-
-  useEffect(() => {
-    // Prevent viewport shifting when virtual keyboard appears
-    const metaViewport = document.querySelector('meta[name=viewport]');
-    if (metaViewport) {
-      metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, height=device-height');
-    }
-    
-    return () => {
-      // Reset viewport meta tag when component unmounts
-      if (metaViewport) {
-        metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
-      }
-    };
-  }, []);
 
   if (!client) {
     return null
@@ -111,7 +96,7 @@ export function ChatPageComponent() {
 
   return (
     <div className="h-[100dvh] overflow-hidden flex items-start justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="w-full h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] mt-16 lg:max-w-7xl lg:h-[calc(100dvh-12rem)] lg:mt-20 lg:mb-8 lg:mx-auto lg:p-4">
+      <div className="w-full h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] mt-16 lg:max-w-7xl lg:h-[calc(100dvh-12rem)] lg:mt-20 lg:mb-8 lg:mx-auto lg:p-4 fixed inset-x-0">
         <div className="bg-gray-800/50 backdrop-blur-xl border-0 lg:border lg:border-cyan-500/30 overflow-hidden h-full lg:rounded-2xl">
           <div className="h-full flex flex-col">
             <Chat client={client} theme="str-chat__theme-dark">
@@ -212,6 +197,7 @@ export function ChatPageComponent() {
                   transition-transform duration-300 ease-in-out
                   absolute lg:relative left-0 top-0
                   bg-gray-900/50 lg:bg-transparent
+                  flex flex-col
                 `}>
                   {activeChannel ? (
                     <Channel EmojiPicker={EmojiPicker} channel={activeChannel}>
@@ -227,9 +213,15 @@ export function ChatPageComponent() {
                             Back to Messages
                           </Button>
                         </div>
-                        <ChannelHeader />
-                        <MessageList />
-                        <MessageInput />
+                        <div className="flex-shrink-0">
+                          <ChannelHeader />
+                        </div>
+                        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+                          <MessageList />
+                        </div>
+                        <div className="flex-shrink-0">
+                          <MessageInput />
+                        </div>
                       </Window>
                       <Thread />
                     </Channel>
