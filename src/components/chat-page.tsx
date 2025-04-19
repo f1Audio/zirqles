@@ -96,7 +96,7 @@ export function ChatPageComponent() {
 
   return (
     <div className="h-[100dvh] overflow-hidden flex items-start justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="w-full h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] mt-16 lg:max-w-7xl lg:h-[calc(100dvh-12rem)] lg:mt-20 lg:mb-8 lg:mx-auto lg:p-4 fixed inset-x-0">
+      <div className="w-full h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] mt-16 fixed lg:relative lg:h-[calc(100dvh-12rem)] lg:mt-20 lg:mb-8 lg:mx-auto lg:p-4 lg:max-w-7xl inset-x-0 lg:inset-x-auto">
         <div className="bg-gray-800/50 backdrop-blur-xl border-0 lg:border lg:border-cyan-500/30 overflow-hidden h-full lg:rounded-2xl">
           <div className="h-full flex flex-col">
             <Chat client={client} theme="str-chat__theme-dark">
@@ -109,6 +109,7 @@ export function ChatPageComponent() {
                   transition-all duration-300 ease-in-out
                   bg-gray-900/50 lg:bg-transparent
                   overflow-y-auto
+                  flex-shrink-0
                 `}>
                   <div className="p-4 border-b border-cyan-500/30">
                     <div className="flex items-center justify-between">
@@ -198,6 +199,7 @@ export function ChatPageComponent() {
                   absolute lg:relative left-0 top-0
                   bg-gray-900/50 lg:bg-transparent
                   flex flex-col
+                  lg:min-w-0
                 `}>
                   {activeChannel ? (
                     <Channel EmojiPicker={EmojiPicker} channel={activeChannel}>
