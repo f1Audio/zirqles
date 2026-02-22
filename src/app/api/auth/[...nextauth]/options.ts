@@ -181,7 +181,7 @@ export const authOptions: NextAuthOptions = {
       return true
     },
   },
-  debug: true,
+  debug: process.env.NODE_ENV === 'development',
   secret: process.env.NEXTAUTH_SECRET,
   cookies: {
     sessionToken: {
