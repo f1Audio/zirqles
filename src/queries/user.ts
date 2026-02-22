@@ -1,5 +1,9 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
+
+const AVATAR_SIZE_LIMIT = 5 * 1024 * 1024 // 5MB
+const AVATAR_SIZE_LIMIT_MB = 5
+
 export interface UserData {
   _id: string
   username: string
@@ -60,11 +64,16 @@ export function useUpdateAvatar() {
 
   return useMutation({
     mutationFn: async ({ file, oldAvatar }: UpdateAvatarParams) => {
+      // Client-side file size validation
+      if (file.size > AVATAR_SIZE_LIMIT) {
+        throw new Error(`Avatar too large. Maximum size is ${AVATAR_SIZE_LIMIT_MB}MB`)
+      }
+
       // Get presigned URL
       const presignedResponse = await fetch('/api/users/avatar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentType: 'image/jpeg' }),
+        body: JSON.stringify({ contentType: file.type, fileSize: file.size }),
       })
 
       if (!presignedResponse.ok) {
@@ -77,7 +86,7 @@ export function useUpdateAvatar() {
       const uploadResponse = await fetch(uploadUrl, {
         method: 'PUT',
         body: file,
-        headers: { 'Content-Type': 'image/jpeg' },
+        headers: { 'Content-Type': file.type },
       })
 
       if (!uploadResponse.ok) {

@@ -6,6 +6,16 @@ import { toast } from 'sonner'
 import Image from 'next/image'
 import { formatTextWithMentions } from '@/lib/utils'
 
+const FILE_SIZE_LIMITS = {
+  image: 10 * 1024 * 1024,   // 10MB
+  video: 100 * 1024 * 1024,  // 100MB
+}
+
+const FILE_SIZE_LIMITS_MB = {
+  image: 10,
+  video: 100,
+}
+
 interface PostComposerProps {
   value: string
   onChange: (value: string) => void
@@ -26,13 +36,20 @@ export function PostComposer({ value, onChange, onSubmit }: PostComposerProps) {
 
     try {
       for (const file of Array.from(files)) {
+        const mediaType = file.type.startsWith('image/') ? 'image' : 'video'
+        const maxSize = FILE_SIZE_LIMITS[mediaType]
         
+        // Client-side file size validation
+        if (file.size > maxSize) {
+          toast.error(`File too large. Maximum size is ${FILE_SIZE_LIMITS_MB[mediaType]}MB for ${mediaType}s`)
+          continue
+        }
         
         // Get presigned URL
         const res = await fetch('/api/posts/media', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contentType: file.type }),
+          body: JSON.stringify({ contentType: file.type, fileSize: file.size }),
         })
 
         if (!res.ok) throw new Error('Failed to get upload URL')

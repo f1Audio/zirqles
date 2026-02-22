@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
-import { generatePostMediaKey, getPresignedUploadUrl } from '@/lib/s3';
+import { generatePostMediaKey, getPresignedUploadUrl, FILE_SIZE_LIMITS, FILE_SIZE_LIMITS_MB } from '@/lib/s3';
 
 const ALLOWED_TYPES = {
   image: ['image/jpeg', 'image/png', 'image/webp'],
@@ -15,13 +15,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { contentType } = await req.json();
+    const { contentType, fileSize } = await req.json();
     
     // Validate content type
     const mediaType = contentType.startsWith('image/') ? 'image' : 'video';
     if (!ALLOWED_TYPES[mediaType].includes(contentType)) {
       return NextResponse.json(
         { error: 'Invalid file type' },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size
+    if (typeof fileSize !== 'number' || fileSize <= 0) {
+      return NextResponse.json(
+        { error: 'File size is required' },
+        { status: 400 }
+      );
+    }
+
+    const maxSize = FILE_SIZE_LIMITS[mediaType];
+    if (fileSize > maxSize) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${FILE_SIZE_LIMITS_MB[mediaType]}MB for ${mediaType}s` },
         { status: 400 }
       );
     }

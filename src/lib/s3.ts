@@ -1,6 +1,19 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+// File size limits (in bytes)
+export const FILE_SIZE_LIMITS = {
+  image: 10 * 1024 * 1024,   // 10MB for images
+  video: 100 * 1024 * 1024,  // 100MB for videos
+  avatar: 5 * 1024 * 1024,   // 5MB for avatars
+} as const;
+
+export const FILE_SIZE_LIMITS_MB = {
+  image: 10,
+  video: 100,
+  avatar: 5,
+} as const;
+
 // Initialize S3 client
 export const s3Client = new S3Client({
   region: process.env.AWS_REGION as string,

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
-import { getPresignedUploadUrl, deleteAvatarFromS3 } from '@/lib/s3';
+import { getPresignedUploadUrl, deleteAvatarFromS3, FILE_SIZE_LIMITS, FILE_SIZE_LIMITS_MB } from '@/lib/s3';
 
 export async function POST(req: Request) {
   try {
@@ -10,7 +10,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { fileType, oldKey } = await req.json();
+    const { fileType, fileSize, oldKey } = await req.json();
+
+    // Validate file size
+    if (typeof fileSize !== 'number' || fileSize <= 0) {
+      return NextResponse.json(
+        { error: 'File size is required' },
+        { status: 400 }
+      );
+    }
+
+    if (fileSize > FILE_SIZE_LIMITS.avatar) {
+      return NextResponse.json(
+        { error: `Avatar too large. Maximum size is ${FILE_SIZE_LIMITS_MB.avatar}MB` },
+        { status: 400 }
+      );
+    }
     
     // Generate a unique key for the file
     const key = `avatars/${session.user.id}/${Date.now()}.${fileType.split('/')[1]}`;

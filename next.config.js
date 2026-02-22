@@ -20,10 +20,6 @@ const nextConfig = {
         pathname: '/**',
       }
     ],
-    domains: [
-      // Add any external image domains you're using
-      'your-domain.com'
-    ]
   },
   // Add headers for security
   async headers() {
@@ -55,10 +51,6 @@ const nextConfig = {
         ],
       },
     ]
-  },
-  // Add this configuration
-  experimental: {
-    missingSuspenseWithCSRError: false,
   },
   // Configure dynamic routes
   async rewrites() {

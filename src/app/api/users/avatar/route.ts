@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/options';
-import { generateAvatarKey, getPresignedUploadUrl, deleteAvatarFromS3 } from '@/lib/s3';
+import { generateAvatarKey, getPresignedUploadUrl, deleteAvatarFromS3, FILE_SIZE_LIMITS, FILE_SIZE_LIMITS_MB } from '@/lib/s3';
 import dbConnect from '@/lib/mongodb';
 import { User } from '@/models/User';
 
@@ -12,12 +12,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { contentType } = await req.json();
+    const { contentType, fileSize } = await req.json();
     
     // Validate content type
     if (!contentType.match(/^image\/(jpeg|png|webp)$/)) {
       return NextResponse.json(
         { error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed.' },
+        { status: 400 }
+      );
+    }
+
+    // Validate file size
+    if (typeof fileSize !== 'number' || fileSize <= 0) {
+      return NextResponse.json(
+        { error: 'File size is required' },
+        { status: 400 }
+      );
+    }
+
+    if (fileSize > FILE_SIZE_LIMITS.avatar) {
+      return NextResponse.json(
+        { error: `Avatar too large. Maximum size is ${FILE_SIZE_LIMITS_MB.avatar}MB` },
         { status: 400 }
       );
     }
